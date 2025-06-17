@@ -1,8 +1,30 @@
-interface TimeSlot {
-  id: UUID;
-  doctorId: UUID;
-  date: string; // ISO date (e.g. "2025-06-17")
-  startTime: string; // e.g. "14:00"
-  endTime: string;   // e.g. "14:30"
+import { Entity, PrimaryGeneratedColumn, Column, ManyToOne, OneToOne } from 'typeorm';
+import { Doctor } from './Doctor';
+import { Appointment } from './Appointment';
+
+@Entity()
+export class TimeSlot {
+  @PrimaryGeneratedColumn('uuid')
+  id: string;
+
+  @Column()
+  doctorId: string;
+
+  @ManyToOne(() => Doctor, (doctor) => doctor.timeSlots)
+  doctor: Doctor;
+
+  @Column({ type: 'date' })
+  date: string;
+
+  @Column({ type: 'time' })
+  startTime: string;
+
+  @Column({ type: 'time' })
+  endTime: string;
+
+  @Column()
   isBooked: boolean;
+
+  @OneToOne(() => Appointment, (appointment) => appointment.timeSlot)
+  appointment: Appointment;
 }
