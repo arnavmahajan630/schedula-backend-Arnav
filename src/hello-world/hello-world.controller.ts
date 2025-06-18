@@ -8,7 +8,7 @@ import {
     Res,
 } from '@nestjs/common';
 import { Response } from 'express';
-import { HelloWorldService } from './hello-world.service';
+import { HelloWorldService } from './hello.world.service';
 
 @Controller('hello-world')
 export class HelloWorldController {

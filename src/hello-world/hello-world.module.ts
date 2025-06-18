@@ -1,7 +1,6 @@
 import { Logger, Module } from '@nestjs/common';
 import { HelloWorldController } from './hello-world.controller';
-import { HelloWorldService } from './hello-world.service';
-
+import { HelloWorldService } from './hello.world.service';
 @Module({
   // Declares the controller that handles HTTP requests for this module
   controllers: [HelloWorldController],
