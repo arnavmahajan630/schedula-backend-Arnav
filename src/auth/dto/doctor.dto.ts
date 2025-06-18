@@ -61,9 +61,9 @@ export class DoctorSignupDto {
   available_time_slots: string[];
 }
 
-export class DoctorLoginDto {
-  @IsEmail()
+export class DoctorSigninDto {
   @IsNotEmpty()
+  @IsEmail()
   email: string;
 
   @IsNotEmpty()

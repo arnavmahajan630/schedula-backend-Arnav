@@ -52,7 +52,7 @@ export class Doctor {
     nullable: true,
     name: 'hashed_refresh_token',
   })
-  hashedRefreshToken: string | null;
+  hashed_refresh_token: string | null;
 
   @CreateDateColumn()
   created_at: Date;
