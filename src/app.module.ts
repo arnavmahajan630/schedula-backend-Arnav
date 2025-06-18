@@ -1,30 +1,26 @@
 import { Module } from '@nestjs/common';
-import { AppController } from './app.controller';
-import { AppService } from './app.service';
-import { HelloWorldModule } from './Hello-World/hello-world.module';
+import { ConfigModule } from '@nestjs/config';
 import { TypeOrmModule } from '@nestjs/typeorm';
 
-import { Doctor } from './Entities/doctor.entity';
-import { Appointment } from './Entities/appointment.entity';
-import { Patient } from './Entities/patient.entity';
-import { TimeSlot } from './Entities/timeslot.entity';
+import { typeOrmConfig } from './config/database.config';
+
+import { UserModule } from './user/user.module';
+import { DoctorModule } from './doctor/doctor.module';
+import { PatientModule } from './patient/patient.module';
+import { TimeSlotModule } from './timeslot/timeslot.module';
+import { AppointmentModule } from './appointment/appointment.module';
+import { AvailabilityModule } from './availability/availability.module';
 
 @Module({
   imports: [
-    HelloWorldModule,
-    TypeOrmModule.forRoot({
-      type: 'postgres',
-      host: process.env.DB_HOST,
-      port: Number(process.env.DB_PORT),
-      username: process.env.DB_USER,
-      password: process.env.DB_PASSWORD,
-      database: process.env.DB_NAME,
-      entities: [Doctor, Patient, TimeSlot, Appointment],
-      synchronize: true, // for dev usecase only!
-
-    }),
+    ConfigModule.forRoot({ isGlobal: true }),
+    TypeOrmModule.forRootAsync({ useFactory: typeOrmConfig }),
+    UserModule,
+    DoctorModule,
+    PatientModule,
+    TimeSlotModule,
+    AppointmentModule,
+    AvailabilityModule,
   ],
-  controllers: [AppController],
-  providers: [AppService],
 })
 export class AppModule {}
