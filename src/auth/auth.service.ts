@@ -36,6 +36,7 @@ export class AuthService {
         email: userSignupDto.email,
         password_hash: hashed_password,
         phone_number: userSignupDto.phone_number,
+        role: userSignupDto.role,
         hashed_refresh_token: null,
       });
 
