@@ -68,13 +68,14 @@ export class AuthService {
       throw new UnauthorizedException('Invalid email or password');
     }
 
-    const tokens = this.generateTokens(doctor);
+    const tokens = await this.generateTokens(doctor);
 
     doctor.hashed_refresh_token = await this.hashString(tokens.refreshToken);
     await this.doctorRepository.save(doctor);
 
     return tokens;
   }
+  async refreshTokens(refreshToken: string) {}
 
   private async hashString(string: string): Promise<string> {
     const stringHash = await bcrypt.hash(string, 10);
@@ -88,18 +89,18 @@ export class AuthService {
     return isValid;
   }
 
-  private generateTokens(doctor: Doctor): {
+  private async generateTokens(doctor: Doctor): Promise<{
     accessToken: string;
     refreshToken: string;
-  } {
+  }> {
     const payload = { email: doctor.email, id: doctor.doctor_id };
 
-    const refreshToken = this.jwtService.sign(payload, {
+    const refreshToken = await this.jwtService.signAsync(payload, {
       secret: process.env.JWT_SECRET,
       expiresIn: '7d',
     });
 
-    const accessToken = this.jwtService.sign(payload, {
+    const accessToken = await this.jwtService.signAsync(payload, {
       secret: process.env.JWT_SECRET,
       expiresIn: '1h',
     });

@@ -6,7 +6,7 @@ import { Doctor } from './entities/doctor.entity';
 import { JwtModule } from '@nestjs/jwt';
 
 @Module({
-  imports: [TypeOrmModule.forFeature([Doctor]), JwtModule],
+  imports: [TypeOrmModule.forFeature([Doctor]), JwtModule.register({})],
   controllers: [AuthController],
   providers: [AuthService],
 })
