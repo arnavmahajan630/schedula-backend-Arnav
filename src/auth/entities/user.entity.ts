@@ -5,11 +5,12 @@ import {
   CreateDateColumn,
   UpdateDateColumn,
 } from 'typeorm';
+import { UserRole } from '../dto/user.dto';
 
-@Entity('doctors')
-export class Doctor {
+@Entity()
+export class User {
   @PrimaryGeneratedColumn()
-  doctor_id: number;
+  user_id: number;
 
   @Column({ type: 'varchar', unique: true })
   email: string;
@@ -26,26 +27,13 @@ export class Doctor {
   @Column({ type: 'varchar' })
   phone_number: string;
 
-  @Column({ type: 'varchar' })
-  specialization: string;
-
-  @Column({ type: 'int', default: 0 })
-  experience_years: number;
-
-  @Column({ type: 'varchar' })
-  education: string;
-
-  @Column({ type: 'varchar' })
-  clinic_name: string;
-
-  @Column({ type: 'varchar' })
-  clinic_address: string;
-
-  @Column({ type: 'simple-array' })
-  available_days: string[];
-
-  @Column({ type: 'simple-array' })
-  available_time_slots: string[];
+  @Column({
+    type: 'enum',
+    enum: UserRole,
+    default: UserRole.PATIENT,
+    name: 'user_role',
+  })
+  role: UserRole;
 
   @Column({
     type: 'varchar',
