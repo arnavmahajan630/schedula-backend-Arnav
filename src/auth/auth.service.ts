@@ -10,6 +10,12 @@ import { Repository } from 'typeorm';
 import * as bcrypt from 'bcrypt';
 import { JwtService } from '@nestjs/jwt';
 
+interface JwtPayload {
+  email: string;
+  sub: number;
+  role: string;
+}
+
 @Injectable()
 export class AuthService {
   constructor(
@@ -81,6 +87,36 @@ export class AuthService {
     }
   }
 
+  async refreshTokens(refreshToken: string) {
+    try {
+      const payload = await this.jwtService.verifyAsync<JwtPayload>(
+        refreshToken,
+        {
+          secret: process.env.JWT_SECRET,
+        },
+      );
+      const user = await this.userRepository.findOne({
+        where: { user_id: payload.sub },
+      });
+      if (!user) {
+        throw new UnauthorizedException('Invalid refresh token');
+      }
+      const isRefreshTokenValid = await this.verifyString(
+        refreshToken,
+        user.hashed_refresh_token || '',
+      );
+      if (!isRefreshTokenValid) {
+        throw new UnauthorizedException('Invalid refresh token');
+      }
+      const tokens = await this.generateTokens(user);
+      user.hashed_refresh_token = await this.hashString(tokens.refreshToken);
+      await this.userRepository.save(user);
+      return tokens;
+    } catch {
+      throw new UnauthorizedException('Invalid refresh token');
+    }
+  }
+
   private async hashString(string: string): Promise<string> {
     const stringHash = await bcrypt.hash(string, 10);
     return stringHash;
@@ -97,7 +133,11 @@ export class AuthService {
     accessToken: string;
     refreshToken: string;
   }> {
-    const payload = { email: user.email, id: user.user_id };
+    const payload: JwtPayload = {
+      email: user.email,
+      sub: user.user_id,
+      role: user.role,
+    };
 
     const refreshToken = await this.jwtService.signAsync(payload, {
       secret: process.env.JWT_SECRET,
