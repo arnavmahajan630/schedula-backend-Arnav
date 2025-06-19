@@ -4,9 +4,14 @@ import { AuthService } from './auth.service';
 import { TypeOrmModule } from '@nestjs/typeorm';
 import { User } from './entities/user.entity';
 import { JwtModule } from '@nestjs/jwt';
+import { Doctor } from './entities/doctor.entity';
+import { Patient } from './entities/patient.entity';
 
 @Module({
-  imports: [TypeOrmModule.forFeature([User]), JwtModule.register({})],
+  imports: [
+    TypeOrmModule.forFeature([User, Doctor, Patient]),
+    JwtModule.register({}),
+  ],
   controllers: [AuthController],
   providers: [AuthService],
 })

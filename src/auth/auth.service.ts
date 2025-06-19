@@ -1,14 +1,17 @@
 import {
   ConflictException,
+  ForbiddenException,
   Injectable,
   UnauthorizedException,
 } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { User } from './entities/user.entity';
-import { UserSigninDto, UserSignupDto } from './dto/user.dto';
+import { UserRole, UserSigninDto, UserSignupDto } from './dto/user.dto';
 import { Repository } from 'typeorm';
 import * as bcrypt from 'bcrypt';
 import { JwtService } from '@nestjs/jwt';
+import { Doctor } from './entities/doctor.entity';
+import { Patient } from './entities/patient.entity';
 
 interface JwtPayload {
   email: string;
@@ -21,40 +24,79 @@ export class AuthService {
   constructor(
     @InjectRepository(User)
     private userRepository: Repository<User>,
+    @InjectRepository(Doctor)
+    private doctorRepository: Repository<Doctor>,
+    @InjectRepository(Patient)
+    private patientRepository: Repository<Patient>,
     private jwtService: JwtService,
   ) {}
 
   async signup(userSignupDto: UserSignupDto) {
-    try {
-      const alredyExists = await this.userRepository.findOne({
-        where: { email: userSignupDto.email },
-      });
-      if (alredyExists) {
-        throw new ConflictException(
-          'Email already in use. Please use a different email.',
-        );
-      }
-      const hashed_password = await this.hashString(userSignupDto.password);
+    return await this.userRepository.manager.transaction(
+      async (transactionalEntityManager) => {
+        try {
+          // Check if user already exists
+          const alreadyExists = await transactionalEntityManager.findOne(User, {
+            where: { email: userSignupDto.email },
+          });
 
-      const newUser = this.userRepository.create({
-        first_name: userSignupDto.first_name,
-        last_name: userSignupDto.last_name,
-        email: userSignupDto.email,
-        password_hash: hashed_password,
-        phone_number: userSignupDto.phone_number,
-        role: userSignupDto.role,
-        hashed_refresh_token: null,
-      });
+          if (alreadyExists) {
+            throw new ConflictException(
+              'Email already in use. Please use a different email.',
+            );
+          }
 
-      const savedUser = await this.userRepository.save(newUser);
-      savedUser.password_hash = '';
+          const hashed_password = await this.hashString(userSignupDto.password);
 
-      return savedUser;
-    } catch {
-      throw new ConflictException(
-        'Email already in use. Please use a different email.',
-      );
-    }
+          const newUser = transactionalEntityManager.create(User, {
+            first_name: userSignupDto.first_name,
+            last_name: userSignupDto.last_name,
+            email: userSignupDto.email,
+            password_hash: hashed_password,
+            phone_number: userSignupDto.phone_number,
+            role: userSignupDto.role,
+            hashed_refresh_token: null,
+          });
+
+          const savedUser = await transactionalEntityManager.save(newUser);
+
+          if (userSignupDto.role === UserRole.DOCTOR) {
+            const newDoctor = transactionalEntityManager.create(Doctor, {
+              user: savedUser,
+              education: userSignupDto.education,
+              specialization: userSignupDto.specialization,
+              experience_years: userSignupDto.experience_years,
+              clinic_name: userSignupDto.clinic_name,
+              clinic_address: userSignupDto.clinic_address,
+              available_days: userSignupDto.available_days,
+              available_time_slots: userSignupDto.available_time_slots,
+            });
+            await transactionalEntityManager.save(newDoctor);
+          } else if (userSignupDto.role === UserRole.PATIENT) {
+            const newPatient = transactionalEntityManager.create(Patient, {
+              user: savedUser,
+              age: userSignupDto.age,
+              gender: userSignupDto.gender,
+              emergency_contact: userSignupDto.emergency_contact,
+              address: userSignupDto.address,
+              medical_history: userSignupDto.medical_history,
+            });
+            await transactionalEntityManager.save(newPatient);
+          }
+
+          const { password_hash, hashed_refresh_token, ...userResponse } =
+            savedUser;
+          return userResponse;
+        } catch (error) {
+          if (error instanceof ConflictException) {
+            throw error;
+          }
+          throw new ForbiddenException(
+            `Invalid fields for ${userSignupDto.role}`,
+          );
+        }
+      },
+    );
   }
 
   async signin(userSigninDto: UserSigninDto) {

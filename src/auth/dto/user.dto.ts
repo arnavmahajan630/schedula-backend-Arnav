@@ -1,6 +1,7 @@
 import {
   IsEmail,
   IsNotEmpty,
+  IsNumber,
   IsOptional,
   IsString,
   MinLength,
@@ -37,6 +38,56 @@ export class UserSignupDto {
   @IsString()
   @IsOptional()
   role: UserRole;
+
+  // Additional fields for doctor
+  @IsOptional()
+  @IsString()
+  education?: string;
+
+  @IsOptional()
+  @IsString()
+  specialization?: string;
+
+  @IsOptional()
+  @IsNumber()
+  experience_years?: number;
+
+  @IsOptional()
+  @IsString()
+  clinic_name?: string;
+
+  @IsOptional()
+  @IsString()
+  clinic_address?: string;
+
+  @IsOptional()
+  @IsString()
+  available_days?: string;
+
+  @IsOptional()
+  @IsString()
+  available_time_slots?: string;
+
+  // Additional fields for patient
+  @IsOptional()
+  @IsNumber()
+  age?: number;
+
+  @IsOptional()
+  @IsString()
+  gender?: string;
+
+  @IsOptional()
+  @IsString()
+  address?: string;
+
+  @IsOptional()
+  @IsString()
+  emergency_contact?: string;
+
+  @IsOptional()
+  @IsString()
+  medical_history?: string;
 }
 
 export class UserSigninDto {
