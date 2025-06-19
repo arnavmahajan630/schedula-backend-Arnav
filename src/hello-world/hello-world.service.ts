@@ -2,7 +2,9 @@ import { Injectable } from '@nestjs/common';
 
 @Injectable()
 export class HelloWorldService {
-  getHello(): string {
-    return 'Hello World!';
+  getWelcomeMessage(): string {
+    return '🌍 Welcome aboard! This NestJS app is running smoothly.';
   }
 }
+
+
