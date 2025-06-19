@@ -7,17 +7,21 @@ export class Appointment {
   @PrimaryGeneratedColumn()
   appointment_id: number;
 
-  @ManyToOne(() => Doctor, (doctor) => doctor.appointments, { onDelete: 'CASCADE' })
+  @ManyToOne(() => Doctor, (doctor) => doctor.appointments, {
+    onDelete: 'CASCADE',
+  })
   doctor: Doctor;
 
-  @ManyToOne(() => Patient, (patient) => patient.appointments, { onDelete: 'CASCADE' })
+  @ManyToOne(() => Patient, (patient) => patient.appointments, {
+    onDelete: 'CASCADE',
+  })
   patient: Patient;
 
   @ManyToOne(() => TimeSlot, { onDelete: 'SET NULL' })
   time_slot: TimeSlot;
 
   @Column()
-  appointment_date: string;  // store as "YYYY-MM-DD"
+  appointment_date: string; // store as "YYYY-MM-DD"
 
   @Column()
   appointment_status: string;

@@ -1,26 +1,22 @@
 import { Module } from '@nestjs/common';
 import { ConfigModule } from '@nestjs/config';
 import { TypeOrmModule } from '@nestjs/typeorm';
-
-import { typeOrmConfig } from './config/database.config';
-
-import { UserModule } from './user/user.module';
-import { DoctorModule } from './doctor/doctor.module';
-import { PatientModule } from './patient/patient.module';
-import { TimeSlotModule } from './timeslot/timeslot.module';
-import { AppointmentModule } from './appointment/appointment.module';
-import { AvailabilityModule } from './availability/availability.module';
+import { AuthModule } from './auth/auth.module';
+import { AppDataSource } from './data-source';
+import { HelloWorldModule } from './hello-world/hello-world.module';
+import { AppController } from './app.controller';
+import { AppService } from './app.service';
 
 @Module({
   imports: [
-    ConfigModule.forRoot({ isGlobal: true }),
-    TypeOrmModule.forRootAsync({ useFactory: typeOrmConfig }),
-    UserModule,
-    DoctorModule,
-    PatientModule,
-    TimeSlotModule,
-    AppointmentModule,
-    AvailabilityModule,
+    HelloWorldModule,
+    ConfigModule.forRoot({
+      isGlobal: true,
+    }),
+    TypeOrmModule.forRoot(AppDataSource.options),
+    AuthModule,
   ],
+  controllers: [AppController],
+  providers: [AppService],
 })
 export class AppModule {}
