@@ -33,45 +33,55 @@ export class AuthService {
     private jwtService: JwtService,
   ) {}
 
-  async signup(
-  userSignupDto: UserSignupDto,
-  doctorDto?: DoctorSignupDto,
-  patientDto?: PatientSignupDto,
-) {
-  const exists = await this.userRepository.findOne({
+  async signup(userSignupDto: UserSignupDto) {
+  const alreadyExists = await this.userRepository.findOne({
     where: { email: userSignupDto.email },
   });
-  if (exists) throw new ConflictException('Email already in use');
-
-  const hashedPassword = await this.hashString(userSignupDto.password);
-
-  const userData: any = {
-    ...userSignupDto,
-    password_hash: hashedPassword,
-    hashed_refresh_token: null,
-  };
-
-  if (userSignupDto.role === 'doctor' && doctorDto) {
-    userData.education = doctorDto.education;
-    userData.specialization = doctorDto.specialization;
-    userData.experience_years = doctorDto.experience_years;
-    userData.clinic_name = doctorDto.clinic_name;
-    userData.clinic_address = doctorDto.clinic_address;
-    userData.available_days = doctorDto.available_days;
-    userData.available_time_slots = doctorDto.available_time_slots;
+  if (alreadyExists) {
+    throw new ConflictException('Email already in use');
   }
 
-  if (userSignupDto.role === 'patient' && patientDto) {
-    userData.age = patientDto.age;
-    userData.gender = patientDto.gender;
-    userData.address = patientDto.address;
-    userData.emergency_contact = patientDto.emergency_contact;
-    userData.medical_history = patientDto.medical_history;
+  const hashed_password = await this.hashString(userSignupDto.password);
+
+  // Save base user
+  const user = this.userRepository.create({
+    email: userSignupDto.email,
+    password_hash: hashed_password,
+    first_name: userSignupDto.first_name,
+    last_name: userSignupDto.last_name,
+    phone_number: userSignupDto.phone_number,
+    role: userSignupDto.role,
+  });
+  const savedUser = await this.userRepository.save(user);
+
+  // Save doctor or patient profile
+  if (savedUser.role === UserRole.DOCTOR) {
+    const doctor = this.doctorRepository.create({
+      user: savedUser,
+      education: userSignupDto.education,
+      specialization: userSignupDto.specialization,
+      experience_years: userSignupDto.experience_years,
+      clinic_name: userSignupDto.clinic_name,
+      clinic_address: userSignupDto.clinic_address,
+      available_days: userSignupDto.available_days,
+      available_time_slots: userSignupDto.available_time_slots,
+    });
+    await this.doctorRepository.save(doctor);
+  } else if (savedUser.role === UserRole.PATIENT) {
+    const patient = this.patientRepository.create({
+      user: savedUser,
+      age: userSignupDto.age,
+      gender: userSignupDto.gender,
+      address: userSignupDto.address,
+      emergency_contact: userSignupDto.emergency_contact,
+      medical_history: userSignupDto.medical_history,
+    });
+    await this.patientRepository.save(patient);
   }
 
-  const user = this.userRepository.create(userData);
-  return await this.userRepository.save(user);
+  return { message: 'Signup successful', user_id: savedUser.user_id, role: savedUser.role };
 }
+
 
 
   async signin(userSigninDto: UserSigninDto) {
