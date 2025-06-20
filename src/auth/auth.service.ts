@@ -12,6 +12,8 @@ import * as bcrypt from 'bcrypt';
 import { JwtService } from '@nestjs/jwt';
 import { Doctor } from './entities/doctor.entity';
 import { Patient } from './entities/patient.entity';
+import { DoctorSignupDto } from './dto/Doctor.dto';
+import { PatientSignupDto } from './dto/Patient.dto';
 
 interface JwtPayload {
   email: string;
@@ -31,73 +33,46 @@ export class AuthService {
     private jwtService: JwtService,
   ) {}
 
-  async signup(userSignupDto: UserSignupDto) {
-    return await this.userRepository.manager.transaction(
-      async (transactionalEntityManager) => {
-        try {
-          // Check if user already exists
-          const alreadyExists = await transactionalEntityManager.findOne(User, {
-            where: { email: userSignupDto.email },
-          });
+  async signup(
+  userSignupDto: UserSignupDto,
+  doctorDto?: DoctorSignupDto,
+  patientDto?: PatientSignupDto,
+) {
+  const exists = await this.userRepository.findOne({
+    where: { email: userSignupDto.email },
+  });
+  if (exists) throw new ConflictException('Email already in use');
 
-          if (alreadyExists) {
-            throw new ConflictException(
-              'Email already in use. Please use a different email.',
-            );
-          }
+  const hashedPassword = await this.hashString(userSignupDto.password);
 
-          const hashed_password = await this.hashString(userSignupDto.password);
+  const userData: any = {
+    ...userSignupDto,
+    password_hash: hashedPassword,
+    hashed_refresh_token: null,
+  };
 
-          const newUser = transactionalEntityManager.create(User, {
-            first_name: userSignupDto.first_name,
-            last_name: userSignupDto.last_name,
-            email: userSignupDto.email,
-            password_hash: hashed_password,
-            phone_number: userSignupDto.phone_number,
-            role: userSignupDto.role,
-            hashed_refresh_token: null,
-          });
-
-          const savedUser = await transactionalEntityManager.save(newUser);
-
-          if (userSignupDto.role === UserRole.DOCTOR) {
-            const newDoctor = transactionalEntityManager.create(Doctor, {
-              user: savedUser,
-              education: userSignupDto.education,
-              specialization: userSignupDto.specialization,
-              experience_years: userSignupDto.experience_years,
-              clinic_name: userSignupDto.clinic_name,
-              clinic_address: userSignupDto.clinic_address,
-              available_days: userSignupDto.available_days,
-              available_time_slots: userSignupDto.available_time_slots,
-            });
-            await transactionalEntityManager.save(newDoctor);
-          } else if (userSignupDto.role === UserRole.PATIENT) {
-            const newPatient = transactionalEntityManager.create(Patient, {
-              user: savedUser,
-              age: userSignupDto.age,
-              gender: userSignupDto.gender,
-              emergency_contact: userSignupDto.emergency_contact,
-              address: userSignupDto.address,
-              medical_history: userSignupDto.medical_history,
-            });
-            await transactionalEntityManager.save(newPatient);
-          }
-
-          const { password_hash, hashed_refresh_token, ...userResponse } =
-            savedUser;
-          return userResponse;
-        } catch (error) {
-          if (error instanceof ConflictException) {
-            throw error;
-          }
-          throw new ForbiddenException(
-            `Invalid fields for ${userSignupDto.role}`,
-          );
-        }
-      },
-    );
+  if (userSignupDto.role === 'doctor' && doctorDto) {
+    userData.education = doctorDto.education;
+    userData.specialization = doctorDto.specialization;
+    userData.experience_years = doctorDto.experience_years;
+    userData.clinic_name = doctorDto.clinic_name;
+    userData.clinic_address = doctorDto.clinic_address;
+    userData.available_days = doctorDto.available_days;
+    userData.available_time_slots = doctorDto.available_time_slots;
   }
+
+  if (userSignupDto.role === 'patient' && patientDto) {
+    userData.age = patientDto.age;
+    userData.gender = patientDto.gender;
+    userData.address = patientDto.address;
+    userData.emergency_contact = patientDto.emergency_contact;
+    userData.medical_history = patientDto.medical_history;
+  }
+
+  const user = this.userRepository.create(userData);
+  return await this.userRepository.save(user);
+}
+
 
   async signin(userSigninDto: UserSigninDto) {
     try {
