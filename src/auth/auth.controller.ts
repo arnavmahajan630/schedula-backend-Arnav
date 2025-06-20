@@ -1,8 +1,8 @@
 import { Body, Controller, HttpCode, HttpStatus, Post } from '@nestjs/common';
 import { AuthService } from './auth.service';
 import { UserSignupDto } from './dto/user.dto';
-import { PatientSignupDto } from './dto/Patient.dto';
-import { DoctorSignupDto } from './dto/Doctor.dto';
+import { DoctorSignupDto } from './dto/doctor.dto';
+import { PatientSignupDto } from './dto/patient.dto';
 import { UserSigninDto } from './dto/user.dto';
 
 @Controller('api/v1/auth')

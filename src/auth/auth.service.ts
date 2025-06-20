@@ -12,8 +12,8 @@ import * as bcrypt from 'bcrypt';
 import { JwtService } from '@nestjs/jwt';
 import { Doctor } from './entities/doctor.entity';
 import { Patient } from './entities/patient.entity';
-import { DoctorSignupDto } from './dto/Doctor.dto';
-import { PatientSignupDto } from './dto/Patient.dto';
+import { DoctorSignupDto } from './dto/doctor.dto';
+import { PatientSignupDto } from './dto/patient.dto';
 
 interface JwtPayload {
   email: string;
