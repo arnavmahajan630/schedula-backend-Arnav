@@ -1,19 +1,20 @@
 import {
   ConflictException,
-  ForbiddenException,
   Injectable,
+  InternalServerErrorException,
   UnauthorizedException,
 } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { User } from './entities/user.entity';
-import { UserRole, UserSigninDto, UserSignupDto } from './dto/user.dto';
-import { Repository } from 'typeorm';
+import { UserRole } from './dto/user.dto';
+import { DataSource, Repository } from 'typeorm';
 import * as bcrypt from 'bcrypt';
 import { JwtService } from '@nestjs/jwt';
 import { Doctor } from './entities/doctor.entity';
 import { Patient } from './entities/patient.entity';
-import { DoctorSignupDto } from './dto/doctor.dto';
 import { PatientSignupDto } from './dto/patient.dto';
+import { DoctorSignupDto } from './dto/doctor.dto';
+import { SigninDto, SignupDto } from './dto/base.dto';
 
 interface JwtPayload {
   email: string;
@@ -31,63 +32,83 @@ export class AuthService {
     @InjectRepository(Patient)
     private patientRepository: Repository<Patient>,
     private jwtService: JwtService,
+    private dataSource: DataSource,
   ) {}
 
-  async signup(userSignupDto: UserSignupDto) {
-  const alreadyExists = await this.userRepository.findOne({
-    where: { email: userSignupDto.email },
-  });
-  if (alreadyExists) {
-    throw new ConflictException('Email already in use');
+  async signup(signupDto: SignupDto) {
+    try {
+      return await this.dataSource.transaction(async (manager) => {
+        // Check if email already exists
+        const emailExists = await manager.findOne(User, {
+          where: { email: signupDto.email },
+        });
+
+        if (emailExists) {
+          throw new ConflictException('Email already in use');
+        }
+
+        const hashed_password = await this.hashString(signupDto.password);
+
+        // Save base user
+        const user = manager.create(User, {
+          email: signupDto.email,
+          password_hash: hashed_password,
+          first_name: signupDto.first_name,
+          last_name: signupDto.last_name,
+          phone_number: signupDto.phone_number,
+          role: signupDto.role,
+        });
+
+        const savedUser = await manager.save(user);
+
+        // Save doctor or patient profile
+        if (savedUser.role === UserRole.DOCTOR) {
+          const doctorSignupDto = signupDto as DoctorSignupDto;
+          const doctor = manager.create(Doctor, {
+            user: savedUser,
+            education: doctorSignupDto.education,
+            specialization: doctorSignupDto.specialization,
+            experience_years: doctorSignupDto.experience_years,
+            clinic_name: doctorSignupDto.clinic_name,
+            clinic_address: doctorSignupDto.clinic_address,
+            available_days: doctorSignupDto.available_days,
+            available_time_slots: doctorSignupDto.available_time_slots,
+          });
+          await manager.save(doctor);
+        }
+
+        if (savedUser.role === UserRole.PATIENT) {
+          const patientSignupDto = signupDto as PatientSignupDto;
+          const patient = manager.create(Patient, {
+            user: savedUser,
+            age: patientSignupDto.age,
+            gender: patientSignupDto.gender,
+            address: patientSignupDto.address,
+            emergency_contact: patientSignupDto.emergency_contact,
+            medical_history: patientSignupDto.medical_history,
+          });
+          await manager.save(patient);
+        }
+
+        return {
+          message: 'Signup successful',
+          user_id: savedUser.user_id,
+          role: savedUser.role,
+        };
+      });
+    } catch (error) {
+      if (error instanceof ConflictException) {
+        throw error;
+      }
+
+      throw new InternalServerErrorException('Failed to create user account');
+    }
   }
 
-  const hashed_password = await this.hashString(userSignupDto.password);
-
-  // Save base user
-  const user = this.userRepository.create({
-    email: userSignupDto.email,
-    password_hash: hashed_password,
-    first_name: userSignupDto.first_name,
-    last_name: userSignupDto.last_name,
-    phone_number: userSignupDto.phone_number,
-    role: userSignupDto.role,
-  });
-  const savedUser = await this.userRepository.save(user);
-
-  // Save doctor or patient profile
-  if (savedUser.role === UserRole.DOCTOR) {
-    const doctor = this.doctorRepository.create({
-      user: savedUser,
-      education: userSignupDto.education,
-      specialization: userSignupDto.specialization,
-      experience_years: userSignupDto.experience_years,
-      clinic_name: userSignupDto.clinic_name,
-      clinic_address: userSignupDto.clinic_address,
-      available_days: userSignupDto.available_days,
-      available_time_slots: userSignupDto.available_time_slots,
-    });
-    await this.doctorRepository.save(doctor);
-  } else if (savedUser.role === UserRole.PATIENT) {
-    const patient = this.patientRepository.create({
-      user: savedUser,
-      age: userSignupDto.age,
-      gender: userSignupDto.gender,
-      address: userSignupDto.address,
-      emergency_contact: userSignupDto.emergency_contact,
-      medical_history: userSignupDto.medical_history,
-    });
-    await this.patientRepository.save(patient);
-  }
-
-  return { message: 'Signup successful', user_id: savedUser.user_id, role: savedUser.role };
-}
-
-
-
-  async signin(userSigninDto: UserSigninDto) {
+  async signin(signinDto: SigninDto) {
     try {
       const user = await this.userRepository.findOne({
-        where: { email: userSigninDto.email },
+        where: { email: signinDto.email },
       });
 
       if (!user) {
@@ -95,7 +116,7 @@ export class AuthService {
       }
 
       const isPasswordValid = await this.verifyString(
-        userSigninDto.password,
+        signinDto.password,
         user.password_hash,
       );
 
@@ -109,8 +130,11 @@ export class AuthService {
       await this.userRepository.save(user);
 
       return tokens;
-    } catch {
-      throw new UnauthorizedException('Invalid email or password');
+    } catch (error) {
+      if (error instanceof UnauthorizedException) {
+        throw error;
+      }
+      throw new InternalServerErrorException('Failed to sign in user');
     }
   }
 
