@@ -1,6 +1,7 @@
-import { IsNotEmpty, IsString, IsNumber } from 'class-validator';
+import { IsNotEmpty, IsNumber, IsString } from 'class-validator';
+import { UserSignupDto } from './user.dto';
 
-export class DoctorSignupDto {
+export class DoctorSignupDto extends UserSignupDto {
   @IsNotEmpty()
   @IsString()
   education: string;
@@ -23,9 +24,9 @@ export class DoctorSignupDto {
 
   @IsNotEmpty()
   @IsString()
-  available_days: string;  // or string[] if you want array
+  available_days: string;
 
   @IsNotEmpty()
   @IsString()
-  available_time_slots: string; // or string[] if you want array
+  available_time_slots: string;
 }

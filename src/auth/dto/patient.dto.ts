@@ -1,6 +1,7 @@
 import { IsNotEmpty, IsString, IsNumber } from 'class-validator';
+import { UserSignupDto } from './user.dto';
 
-export class PatientSignupDto {
+export class PatientSignupDto extends UserSignupDto {
   @IsNotEmpty()
   @IsNumber()
   age: number;
