@@ -6,7 +6,7 @@ import {
 } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { User } from './entities/user.entity';
-import { UserRole } from './dto/user.dto';
+import { UserProvider, UserRole } from './dto/user.dto';
 import { DataSource, Repository } from 'typeorm';
 import * as bcrypt from 'bcrypt';
 import { JwtService } from '@nestjs/jwt';
@@ -15,6 +15,7 @@ import { Patient } from './entities/patient.entity';
 import { PatientSignupDto } from './dto/patient.dto';
 import { DoctorSignupDto } from './dto/doctor.dto';
 import { SigninDto, SignupDto } from './dto/base.dto';
+import { googleUser } from './strategies/google.strategy';
 
 interface JwtPayload {
   email: string;
@@ -115,6 +116,12 @@ export class AuthService {
         throw new UnauthorizedException('Invalid email or password');
       }
 
+      if (user.provider === UserProvider.GOOGLE) {
+        throw new UnauthorizedException(
+          'Account is registered via Google. Please login with Google.',
+        );
+      }
+
       const isPasswordValid = await this.verifyString(
         signinDto.password,
         user.password_hash,
@@ -165,6 +172,67 @@ export class AuthService {
       return tokens;
     } catch {
       throw new UnauthorizedException('Invalid refresh token');
+    }
+  }
+
+  async googleSignin(googleUser: googleUser) {
+    try {
+      let user = await this.userRepository.findOne({
+        where: { email: googleUser.email },
+      });
+
+      if (!user) {
+        // Create new user if not exists
+        user = this.userRepository.create({
+          email: googleUser.email,
+          password_hash: '', // No password for Google users
+          first_name: googleUser.firstName,
+          last_name: googleUser.lastName,
+          phone_number: '',
+          role: googleUser.role,
+          provider: UserProvider.GOOGLE,
+        });
+
+        await this.userRepository.save(user);
+
+        // Create doctor or patient profile
+        if (user.role === UserRole.DOCTOR) {
+          const doctor = this.doctorRepository.create({
+            user: user,
+            education: '',
+            specialization: '',
+            experience_years: 0,
+            clinic_name: '',
+            clinic_address: '',
+            available_days: '',
+            available_time_slots: '',
+          });
+          await this.doctorRepository.save(doctor);
+        }
+        if (user.role === UserRole.PATIENT) {
+          const patient = this.patientRepository.create({
+            user: user,
+            age: 0,
+            gender: '',
+            address: '',
+            emergency_contact: '',
+            medical_history: '',
+          });
+          await this.patientRepository.save(patient);
+        }
+      }
+
+      // Generate tokens
+      const tokens = await this.generateTokens(user);
+      user.hashed_refresh_token = await this.hashString(tokens.refreshToken);
+      await this.userRepository.save(user);
+
+      return tokens;
+    } catch (error) {
+      console.error('Google login error:', error);
+      throw new InternalServerErrorException(
+        'Failed to authenticate with Google',
+      );
     }
   }
 
