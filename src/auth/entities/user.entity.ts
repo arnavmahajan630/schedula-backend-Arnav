@@ -6,7 +6,7 @@ import {
   UpdateDateColumn,
   OneToOne,
 } from 'typeorm';
-import { UserRole } from '../dto/user.dto';
+import { UserProvider, UserRole } from '../dto/user.dto';
 import { Doctor } from './doctor.entity';
 import { Patient } from './patient.entity';
 
@@ -18,7 +18,7 @@ export class User {
   @Column({ type: 'varchar', unique: true })
   email: string;
 
-  @Column({ type: 'varchar' })
+  @Column({ type: 'varchar', nullable: true })
   password_hash: string;
 
   @Column({ type: 'varchar' })
@@ -37,6 +37,14 @@ export class User {
     name: 'user_role',
   })
   role: UserRole;
+
+  @Column({
+    type: 'enum',
+    enum: UserProvider,
+    default: UserProvider.LOCAL,
+    name: 'user_provider',
+  })
+  provider: UserProvider;
 
   @Column({
     type: 'varchar',
