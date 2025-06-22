@@ -4,8 +4,11 @@ import {
   Column,
   CreateDateColumn,
   UpdateDateColumn,
+  OneToOne,
 } from 'typeorm';
 import { UserRole } from '../dto/user.dto';
+import { Doctor } from './doctor.entity';
+import { Patient } from './patient.entity';
 
 @Entity()
 export class User {
@@ -47,4 +50,10 @@ export class User {
 
   @UpdateDateColumn()
   updated_at: Date;
+
+  @OneToOne(() => Doctor, (doctor) => doctor.user, { cascade: true })
+  doctor: Doctor;
+
+  @OneToOne(() => Patient, (patient) => patient.user, { cascade: true })
+  patient: Patient;
 }
