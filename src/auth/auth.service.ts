@@ -17,7 +17,7 @@ import { DoctorSignupDto } from './dto/doctor.dto';
 import { SigninDto, SignupDto } from './dto/base.dto';
 import { googleUser } from './strategies/google.strategy';
 
-interface JwtPayload {
+export interface JwtPayload {
   email: string;
   sub: number;
   role: string;
@@ -66,7 +66,7 @@ export class AuthService {
         if (savedUser.role === UserRole.DOCTOR) {
           const doctorSignupDto = signupDto as DoctorSignupDto;
           const doctor = manager.create(Doctor, {
-            user: savedUser,
+            user_id: savedUser.user_id,
             education: doctorSignupDto.education,
             specialization: doctorSignupDto.specialization,
             experience_years: doctorSignupDto.experience_years,
@@ -81,7 +81,7 @@ export class AuthService {
         if (savedUser.role === UserRole.PATIENT) {
           const patientSignupDto = signupDto as PatientSignupDto;
           const patient = manager.create(Patient, {
-            user: savedUser,
+            user_id: savedUser.user_id,
             age: patientSignupDto.age,
             gender: patientSignupDto.gender,
             address: patientSignupDto.address,
@@ -101,6 +101,7 @@ export class AuthService {
       if (error instanceof ConflictException) {
         throw error;
       }
+      console.error('Signup error:', error);
 
       throw new InternalServerErrorException('Failed to create user account');
     }
@@ -145,7 +146,7 @@ export class AuthService {
     }
   }
 
-  async refreshTokens(refreshToken: string) {
+  async signout(refreshToken: string) {
     try {
       const payload = await this.jwtService.verifyAsync<JwtPayload>(
         refreshToken,
@@ -166,12 +167,45 @@ export class AuthService {
       if (!isRefreshTokenValid) {
         throw new UnauthorizedException('Invalid refresh token');
       }
+      // Invalidate the refresh token by removing it
+      user.hashed_refresh_token = null;
+      await this.userRepository.save(user);
+      return { message: 'Sign out successful' };
+    } catch {
+      throw new UnauthorizedException('Invalid refresh token');
+    }
+  }
+
+  async refreshTokens(refreshToken: string) {
+    try {
+      const payload = await this.jwtService.verifyAsync<JwtPayload>(
+        refreshToken,
+        {
+          secret: process.env.JWT_SECRET,
+        },
+      );
+      const user = await this.userRepository.findOne({
+        where: { user_id: payload.sub },
+      });
+      if (!user || !user.hashed_refresh_token) {
+        throw new UnauthorizedException('Invalid refresh token');
+      }
+      const isRefreshTokenValid = await this.verifyString(
+        refreshToken,
+        user.hashed_refresh_token,
+      );
+      if (!isRefreshTokenValid) {
+        throw new UnauthorizedException('Invalid refresh token');
+      }
       const tokens = await this.generateTokens(user);
       user.hashed_refresh_token = await this.hashString(tokens.refreshToken);
       await this.userRepository.save(user);
       return tokens;
-    } catch {
-      throw new UnauthorizedException('Invalid refresh token');
+    } catch (error) {
+      if (error instanceof UnauthorizedException) {
+        throw error;
+      }
+      throw new InternalServerErrorException('Failed to refresh tokens');
     }
   }
 

@@ -34,7 +34,7 @@ export class User {
     type: 'enum',
     enum: UserRole,
     default: UserRole.PATIENT,
-    name: 'user_role',
+    name: 'role',
   })
   role: UserRole;
 
@@ -42,7 +42,7 @@ export class User {
     type: 'enum',
     enum: UserProvider,
     default: UserProvider.LOCAL,
-    name: 'user_provider',
+    name: 'provider',
   })
   provider: UserProvider;
 

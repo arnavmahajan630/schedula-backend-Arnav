@@ -1,18 +1,18 @@
 import {
   Entity,
-  PrimaryGeneratedColumn,
   Column,
   OneToOne,
   JoinColumn,
   CreateDateColumn,
   UpdateDateColumn,
+  PrimaryColumn,
 } from 'typeorm';
 import { User } from './user.entity';
 
 @Entity()
 export class Doctor {
-  @PrimaryGeneratedColumn()
-  doctor_id: number;
+  @PrimaryColumn()
+  user_id: number;
 
   @OneToOne(() => User, (user) => user.doctor, { onDelete: 'CASCADE' })
   @JoinColumn({ name: 'user_id' })

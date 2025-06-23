@@ -2,12 +2,14 @@ import {
   Body,
   Controller,
   Get,
+  Headers,
   HttpCode,
   HttpStatus,
   Post,
   Query,
   Req,
   Res,
+  UnauthorizedException,
   UseGuards,
 } from '@nestjs/common';
 import { AuthService } from './auth.service';
@@ -33,16 +35,26 @@ export class AuthController {
     return this.authService.signin(signinDto);
   }
 
+  @Post('signout')
+  @HttpCode(HttpStatus.OK)
+  async signout(@Headers('authorization') authHeader: string) {
+    if (!authHeader?.startsWith('Bearer ')) {
+      throw new UnauthorizedException('Refresh token missing');
+    }
+    const refreshToken = authHeader.split(' ')[1];
+    return this.authService.signout(refreshToken);
+  }
+
   @Post('refresh-token')
   @HttpCode(HttpStatus.OK)
-  async refreshToken(@Body('refresh_token') refreshToken: string) {
+  async refresh(@Body('refreshToken') refreshToken: string) {
     return this.authService.refreshTokens(refreshToken);
   }
 
   @Get('google')
   googleAuth(@Query('role') role: string, @Res() res: Response) {
     const validRole = role === 'doctor' ? UserRole.DOCTOR : UserRole.PATIENT;
-    const state = Buffer.from(JSON.stringify({ validRole })).toString(
+    const state = Buffer.from(JSON.stringify({ role: validRole })).toString(
       'base64url',
     ); // Encode role in state
     return res.redirect(`/api/v1/auth/google/login?state=${state}`);
