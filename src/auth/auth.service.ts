@@ -4,11 +4,11 @@ import {
   UnauthorizedException,
 } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
+import { Repository } from 'typeorm';
+import { JwtService } from '@nestjs/jwt';
+import * as bcrypt from 'bcrypt';
 import { User } from './entities/user.entity';
 import { UserSigninDto, UserSignupDto } from './dto/user.dto';
-import { Repository } from 'typeorm';
-import * as bcrypt from 'bcrypt';
-import { JwtService } from '@nestjs/jwt';
 
 interface JwtPayload {
   email: string;
@@ -20,133 +20,91 @@ interface JwtPayload {
 export class AuthService {
   constructor(
     @InjectRepository(User)
-    private userRepository: Repository<User>,
+    private userRepo: Repository<User>,
     private jwtService: JwtService,
   ) {}
 
-  async signup(userSignupDto: UserSignupDto) {
-    try {
-      const alredyExists = await this.userRepository.findOne({
-        where: { email: userSignupDto.email },
-      });
-      if (alredyExists) {
-        throw new ConflictException(
-          'Email already in use. Please use a different email.',
-        );
-      }
-      const hashed_password = await this.hashString(userSignupDto.password);
+  async signup(dto: UserSignupDto) {
+    const exists = await this.userRepo.findOne({ where: { email: dto.email } });
+    if (exists) throw new ConflictException('Email already in use');
 
-      const newUser = this.userRepository.create({
-        first_name: userSignupDto.first_name,
-        last_name: userSignupDto.last_name,
-        email: userSignupDto.email,
-        password_hash: hashed_password,
-        phone_number: userSignupDto.phone_number,
-        role: userSignupDto.role,
-        hashed_refresh_token: null,
-      });
+    const password_hash = await bcrypt.hash(dto.password, 10);
+    const user = this.userRepo.create({
+      ...dto,
+      password_hash,
+    });
 
-      const savedUser = await this.userRepository.save(newUser);
-      savedUser.password_hash = '';
-
-      return savedUser;
-    } catch {
-      throw new ConflictException(
-        'Email already in use. Please use a different email.',
-      );
-    }
+    const savedUser = await this.userRepo.save(user);
+    return {
+      user_id: savedUser.user_id,
+      email: savedUser.email,
+      role: savedUser.role,
+      message: 'Signup successful',
+    };
   }
 
-  async signin(userSigninDto: UserSigninDto) {
-    try {
-      const user = await this.userRepository.findOne({
-        where: { email: userSigninDto.email },
-      });
+  async signin(dto: UserSigninDto) {
+    const user = await this.userRepo.findOne({ where: { email: dto.email } });
+    if (!user) throw new UnauthorizedException('Invalid email or password');
 
-      if (!user) {
-        throw new UnauthorizedException('Invalid email or password');
-      }
+    const isMatch = await bcrypt.compare(dto.password, user.password_hash);
+    if (!isMatch) throw new UnauthorizedException('Invalid email or password');
 
-      const isPasswordValid = await this.verifyString(
-        userSigninDto.password,
-        user.password_hash,
-      );
+    const tokens = await this.generateTokens(user);
+    user.hashed_refresh_token = await bcrypt.hash(tokens.refreshToken, 10);
+    await this.userRepo.save(user);
 
-      if (!isPasswordValid) {
-        throw new UnauthorizedException('Invalid email or password');
-      }
-
-      const tokens = await this.generateTokens(user);
-
-      user.hashed_refresh_token = await this.hashString(tokens.refreshToken);
-      await this.userRepository.save(user);
-
-      return tokens;
-    } catch {
-      throw new UnauthorizedException('Invalid email or password');
-    }
+    return tokens;
   }
 
-  async refreshTokens(refreshToken: string) {
-    try {
-      const payload = await this.jwtService.verifyAsync<JwtPayload>(
-        refreshToken,
-        {
-          secret: process.env.JWT_SECRET,
-        },
-      );
-      const user = await this.userRepository.findOne({
-        where: { user_id: payload.sub },
-      });
-      if (!user) {
-        throw new UnauthorizedException('Invalid refresh token');
-      }
-      const isRefreshTokenValid = await this.verifyString(
-        refreshToken,
-        user.hashed_refresh_token || '',
-      );
-      if (!isRefreshTokenValid) {
-        throw new UnauthorizedException('Invalid refresh token');
-      }
-      const tokens = await this.generateTokens(user);
-      user.hashed_refresh_token = await this.hashString(tokens.refreshToken);
-      await this.userRepository.save(user);
-      return tokens;
-    } catch {
-      throw new UnauthorizedException('Invalid refresh token');
-    }
+  async signout(refreshToken: string) {
+    const payload = await this.jwtService.verifyAsync<JwtPayload>(refreshToken, {
+      secret: process.env.JWT_REFRESH_SECRET,
+    });
+
+    const user = await this.userRepo.findOne({ where: { user_id: payload.sub } });
+    if (!user) throw new UnauthorizedException('Invalid token');
+
+    user.hashed_refresh_token = null;
+    await this.userRepo.save(user);
+
+    return { message: 'Signout successful' };
   }
 
-  private async hashString(string: string): Promise<string> {
-    const stringHash = await bcrypt.hash(string, 10);
-    return stringHash;
-  }
-  private async verifyString(
-    password: string,
-    hashedPassword: string,
-  ): Promise<boolean> {
-    const isValid = await bcrypt.compare(password, hashedPassword);
-    return isValid;
+  async refreshTokens(userId: number, refreshToken: string) {
+  const user = await this.userRepo.findOne({ where: { user_id: userId } });
+  if (!user || !user.hashed_refresh_token) {
+    throw new UnauthorizedException('Invalid refresh token');
   }
 
-  private async generateTokens(user: User): Promise<{
-    accessToken: string;
-    refreshToken: string;
-  }> {
+  const isValid = await bcrypt.compare(refreshToken, user.hashed_refresh_token);
+  if (!isValid) {
+    throw new UnauthorizedException('Invalid refresh token');
+  }
+
+  const tokens = await this.generateTokens(user);
+  user.hashed_refresh_token = await bcrypt.hash(tokens.refreshToken, 10);
+  await this.userRepo.save(user);
+
+  return tokens;
+}
+
+
+  private async generateTokens(user: User) {
     const payload: JwtPayload = {
       email: user.email,
       sub: user.user_id,
       role: user.role,
     };
 
-    const refreshToken = await this.jwtService.signAsync(payload, {
-      secret: process.env.JWT_SECRET,
-      expiresIn: '7d',
+    const accessToken = await this.jwtService.signAsync(payload, {
+      secret: process.env.JWT_ACCESS_SECRET,
+      expiresIn: '1h',
     });
 
-    const accessToken = await this.jwtService.signAsync(payload, {
-      secret: process.env.JWT_SECRET,
-      expiresIn: '1h',
+    const refreshToken = await this.jwtService.signAsync(payload, {
+      secret: process.env.JWT_REFRESH_SECRET,
+      expiresIn: '7d',
     });
 
     return { accessToken, refreshToken };
