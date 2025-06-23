@@ -1,6 +1,6 @@
 import { Body, Controller, Get, HttpCode, HttpStatus, Post, Req, UseGuards, Headers, UnauthorizedException } from '@nestjs/common';
 import { AuthService } from './auth.service';
-import { UserSigninDto, UserSignupDto } from './dto/user.dto';
+import { SigninDto, SignupDto } from './dto/base.dto';
 import { JwtAuthGuard } from './guards/jwt-auth.guard';
 
 @Controller('api/v1/auth')
@@ -9,14 +9,14 @@ export class AuthController {
 
   @Post('signup')
   @HttpCode(HttpStatus.CREATED)
-  async signup(@Body() dto: UserSignupDto) {
-    return this.authService.signup(dto);
+  async signup(@Body() signupDto: SignupDto) {
+    return this.authService.signup(signupDto);
   }
 
   @Post('signin')
   @HttpCode(HttpStatus.OK)
-  async signin(@Body() dto: UserSigninDto) {
-    return this.authService.signin(dto);
+  async signin(@Body() signinDto: SigninDto) {
+    return this.authService.signin(signinDto);
   }
 
   @Post('signout')
@@ -30,10 +30,10 @@ export class AuthController {
   }
 
   @Post('refresh-token')
-@HttpCode(HttpStatus.OK)
-async refresh(@Body('user_id') userId: number, @Body('refresh_token') refreshToken: string) {
-  return this.authService.refreshTokens(userId, refreshToken);
-}
+  @HttpCode(HttpStatus.OK)
+  async refresh(@Body('user_id') userId: number, @Body('refreshToken') refreshToken: string) {
+    return this.authService.refreshTokens(userId, refreshToken);
+  }
 
 
   @Get('doctor/profile')

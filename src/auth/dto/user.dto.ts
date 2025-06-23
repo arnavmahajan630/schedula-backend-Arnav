@@ -1,7 +1,7 @@
 import {
   IsEmail,
+  IsEnum,
   IsNotEmpty,
-  IsOptional,
   IsString,
   MinLength,
 } from 'class-validator';
@@ -34,17 +34,6 @@ export class UserSignupDto {
   phone_number: string;
 
   @IsNotEmpty()
-  @IsString()
-  @IsOptional()
+  @IsEnum(UserRole)
   role: UserRole;
-}
-
-export class UserSigninDto {
-  @IsNotEmpty()
-  @IsEmail()
-  email: string;
-
-  @IsNotEmpty()
-  @IsString()
-  password: string;
 }
