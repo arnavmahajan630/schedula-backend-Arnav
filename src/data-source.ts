@@ -9,7 +9,7 @@ export const AppDataSource = new DataSource({
   type: 'postgres',
   url: process.env.DATABASE_URL,
   entities: [User, Doctor, Patient],
-  migrations: ['dist/migrations/*.js'],
-  migrationsRun: true,
-  synchronize: false,
+  //migrations: ['dist/migrations/*.js'],
+  //migrationsRun: true,
+  synchronize: true,
 });
