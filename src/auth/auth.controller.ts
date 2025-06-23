@@ -19,7 +19,7 @@ export class AuthController {
   }
   @Post('refresh-token')
   @HttpCode(HttpStatus.OK)
-  async refreshToken(@Body('refresh_token') refreshToken: string) {
+  async refreshToken(@Body('refreshToken') refreshToken: string) {
     return this.authService.refreshTokens(refreshToken);
   }
 }
