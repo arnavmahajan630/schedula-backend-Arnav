@@ -18,6 +18,7 @@ import { AuthGuard } from '@nestjs/passport';
 import { Request, Response } from 'express';
 import { googleUser } from './strategies/google.strategy';
 import { UserRole } from './dto/user.dto';
+import { GoogleAuthGuard } from './guards/google.guard';
 
 @Controller('api/v1/auth')
 export class AuthController {
@@ -54,14 +55,11 @@ export class AuthController {
   @Get('google')
   googleAuth(@Query('role') role: string, @Res() res: Response) {
     const validRole = role === 'doctor' ? UserRole.DOCTOR : UserRole.PATIENT;
-    const state = Buffer.from(JSON.stringify({ role: validRole })).toString(
-      'base64url',
-    ); // Encode role in state
-    return res.redirect(`/api/v1/auth/google/login?state=${state}`);
+    return res.redirect(`/api/v1/auth/google/login?state=${validRole}`);
   }
 
   @Get('google/login')
-  @UseGuards(AuthGuard('google'))
+  @UseGuards(GoogleAuthGuard)
   async googleLogin(): Promise<void> {
     // This route is handled by Passport
   }

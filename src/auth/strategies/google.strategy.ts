@@ -5,10 +5,6 @@ import { Profile, Strategy, VerifyCallback } from 'passport-google-oauth20';
 import { Request } from 'express';
 import { UserRole } from '../dto/user.dto';
 
-interface StateParam {
-  role: UserRole;
-}
-
 export interface googleUser {
   email: string;
   firstName: string;
@@ -38,18 +34,13 @@ export class GoogleStrategy extends PassportStrategy(Strategy, 'google') {
   ) {
     // Extract role from state parameter
     let role: UserRole = UserRole.PATIENT; // Default role
-    if (request.query.state) {
-      try {
-        const stateParam = request.query.state as string;
-        const state = JSON.parse(
-          Buffer.from(stateParam, 'base64url').toString(),
-        ) as StateParam;
+    const roleFromState = request.query.state as string;
 
-        role = state.role;
-      } catch (e) {
-        console.error('Invalid state parameter:', e);
-        return done(new Error('Invalid state parameter'));
-      }
+    if (
+      (roleFromState as UserRole) === UserRole.DOCTOR ||
+      (roleFromState as UserRole) === UserRole.PATIENT
+    ) {
+      role = roleFromState as UserRole;
     }
 
     const user: googleUser = {
