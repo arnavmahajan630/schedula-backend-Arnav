@@ -41,6 +41,7 @@ async listDoctors(@Query('search') search: string) {
     where = [
       { clinic_name: ILike(`%${search}%`) },
       { specialization: ILike(`%${search}%`) },
+      { user: { first_name: ILike(`%${search}%`) } }, // name search
     ];
   }
 
