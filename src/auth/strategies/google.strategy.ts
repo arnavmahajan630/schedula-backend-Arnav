@@ -1,7 +1,7 @@
 import { Injectable } from '@nestjs/common';
 import { PassportStrategy } from '@nestjs/passport';
 import { AuthService } from '../auth.service';
-import { Profile, Strategy, VerifyCallback } from 'passport-google-oauth20';
+import { Profile, Strategy } from 'passport-google-oauth20';
 import { Request } from 'express';
 import { UserRole } from '../dto/user.dto';
 
@@ -30,8 +30,7 @@ export class GoogleStrategy extends PassportStrategy(Strategy, 'google') {
     accessToken: string,
     refreshToken: string,
     profile: Profile,
-    done: VerifyCallback,
-  ) {
+  ): googleUser {
     // Extract role from state parameter
     let role: UserRole = UserRole.PATIENT; // Default role
     const roleFromState = request.query.state as string;
@@ -51,6 +50,6 @@ export class GoogleStrategy extends PassportStrategy(Strategy, 'google') {
       role,
     };
 
-    done(null, user);
+    return user;
   }
 }
