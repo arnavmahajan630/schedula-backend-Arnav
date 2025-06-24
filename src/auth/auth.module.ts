@@ -4,8 +4,8 @@ import { AuthService } from './auth.service';
 import { TypeOrmModule } from '@nestjs/typeorm';
 import { JwtModule } from '@nestjs/jwt';
 import { User } from './entities/user.entity';
-import { Doctor } from './entities/doctor.entity';
-import { Patient } from './entities/patient.entity';
+import { Doctor } from '../doctor/entities/doctor.entity';
+import { Patient } from '../patient/entities/patient.entity';
 import { GoogleStrategy } from './strategies/google.strategy';
 import { JwtStrategy } from './strategies/jwt.strategy';
 

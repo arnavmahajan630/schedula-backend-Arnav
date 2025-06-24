@@ -5,16 +5,7 @@ import {
   IsString,
   MinLength,
 } from 'class-validator';
-
-export enum UserRole {
-  DOCTOR = 'doctor',
-  PATIENT = 'patient',
-}
-
-export enum UserProvider {
-  LOCAL = 'local',
-  GOOGLE = 'google',
-}
+import { UserRole } from '../enums/user.enums';
 
 export class UserSignupDto {
   @IsNotEmpty()

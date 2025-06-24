@@ -1,4 +1,5 @@
-import { UserSignupDto, UserRole } from './user.dto';
+import { UserRole } from '../enums/user.enums';
+import { UserSignupDto } from './user.dto';
 import {
   IsEmail,
   IsNotEmpty,
@@ -33,16 +34,6 @@ export class SignupDto extends UserSignupDto {
   @IsNotEmpty()
   @IsString()
   clinic_address?: string;
-
-  @ValidateIf((o: SignupDto) => o.role === UserRole.DOCTOR)
-  @IsNotEmpty()
-  @IsString()
-  available_days?: string;
-
-  @ValidateIf((o: SignupDto) => o.role === UserRole.DOCTOR)
-  @IsNotEmpty()
-  @IsString()
-  available_time_slots?: string;
 
   // Patient-specific fields - only validated when role is PATIENT
   @ValidateIf((o: SignupDto) => o.role === UserRole.PATIENT)
