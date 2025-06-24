@@ -11,7 +11,7 @@ export const AppDataSource = new DataSource({
   type: 'postgres',
   url: process.env.DATABASE_URL,
   entities: [User, Doctor, Patient, DoctorAvailability, DoctorTimeSlot],
-  //migrations: ['dist/migrations/*.js'],
-  //migrationsRun: true,
-  synchronize: true,
+  migrations: ['dist/migrations/*.js'],
+  migrationsRun: true,
+  synchronize: false,
 });
