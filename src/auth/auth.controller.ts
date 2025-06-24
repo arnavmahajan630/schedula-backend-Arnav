@@ -1,7 +1,24 @@
-import { Body, Controller, Get, HttpCode, HttpStatus, Post, Req, UseGuards, Headers, UnauthorizedException } from '@nestjs/common';
+import {
+  Body,
+  Controller,
+  Get,
+  Headers,
+  HttpCode,
+  HttpStatus,
+  Post,
+  Query,
+  Req,
+  Res,
+  UnauthorizedException,
+  UseGuards,
+} from '@nestjs/common';
 import { AuthService } from './auth.service';
 import { SigninDto, SignupDto } from './dto/base.dto';
-import { JwtAuthGuard } from './guards/jwt-auth.guard';
+import { AuthGuard } from '@nestjs/passport';
+import { Request, Response } from 'express';
+import { googleUser } from './strategies/google.strategy';
+import { UserRole } from './dto/user.dto';
+import { GoogleAuthGuard } from './guards/google.guard';
 
 @Controller('api/v1/auth')
 export class AuthController {
@@ -31,26 +48,27 @@ export class AuthController {
 
   @Post('refresh-token')
   @HttpCode(HttpStatus.OK)
-  async refresh(@Body('user_id') userId: number, @Body('refreshToken') refreshToken: string) {
-    return this.authService.refreshTokens(userId, refreshToken);
+  async refresh(@Body('refreshToken') refreshToken: string) {
+    return this.authService.refreshTokens(refreshToken);
   }
 
-
-  @Get('doctor/profile')
-  @UseGuards(JwtAuthGuard)
-  async doctorProfile(@Req() req) {
-    if (req.user.role !== 'doctor') {
-      return { message: 'Access denied' };
-    }
-    return { message: 'Welcome Doctor', user: req.user };
+  @Get('google')
+  googleAuth(@Query('role') role: string, @Res() res: Response) {
+    const validRole = role === 'doctor' ? UserRole.DOCTOR : UserRole.PATIENT;
+    return res.redirect(`/api/v1/auth/google/login?state=${validRole}`);
   }
 
-  @Get('patient/profile')
-  @UseGuards(JwtAuthGuard)
-  async patientProfile(@Req() req) {
-    if (req.user.role !== 'patient') {
-      return { message: 'Access denied' };
-    }
-    return { message: 'Welcome Patient', user: req.user };
+  @Get('google/login')
+  @UseGuards(GoogleAuthGuard)
+  async googleLogin(): Promise<void> {
+    // This route is handled by Passport
+  }
+
+  @Get('google/callback')
+  @UseGuards(AuthGuard('google'))
+  @HttpCode(HttpStatus.OK)
+  async googleCallback(@Req() req: Request) {
+    const tokens = await this.authService.googleSignin(req.user as googleUser);
+    return tokens;
   }
 }

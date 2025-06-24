@@ -11,6 +11,11 @@ export enum UserRole {
   PATIENT = 'patient',
 }
 
+export enum UserProvider {
+  LOCAL = 'local',
+  GOOGLE = 'google',
+}
+
 export class UserSignupDto {
   @IsNotEmpty()
   @IsString()
