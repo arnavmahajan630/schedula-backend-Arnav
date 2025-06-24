@@ -7,37 +7,31 @@ import {
   UpdateDateColumn,
   PrimaryColumn,
 } from 'typeorm';
-import { User } from './user.entity';
+import { User } from '../../auth/entities/user.entity';
 
-@Entity()
-export class Doctor {
+@Entity('patients')
+export class Patient {
   @PrimaryColumn()
   user_id: number;
 
-  @OneToOne(() => User, (user) => user.doctor, { onDelete: 'CASCADE' })
+  @OneToOne(() => User, (user) => user.patient, { onDelete: 'CASCADE' })
   @JoinColumn({ name: 'user_id' })
   user: User;
 
   @Column()
-  education: string;
+  age: number;
 
   @Column()
-  specialization: string;
+  gender: string;
 
   @Column()
-  experience_years: number;
+  address: string;
 
   @Column()
-  clinic_name: string;
+  emergency_contact: string;
 
   @Column()
-  clinic_address: string;
-
-  @Column()
-  available_days: string;
-
-  @Column()
-  available_time_slots: string;
+  medical_history: string;
 
   @CreateDateColumn()
   created_at: Date;
