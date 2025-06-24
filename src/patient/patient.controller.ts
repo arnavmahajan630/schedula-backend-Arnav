@@ -1,5 +1,11 @@
-import { Controller, Get, UseGuards, Req, UnauthorizedException } from '@nestjs/common';
-import { JwtAuthGuard } from '../auth/guards/jwt-auth.guard';
+import {
+  Controller,
+  Get,
+  UseGuards,
+  Req,
+  UnauthorizedException,
+} from '@nestjs/common';
+import { JwtAuthGuard } from '../auth/guards/jwt.guard';
 import { Request } from 'express';
 
 @Controller('api/v1/patient')

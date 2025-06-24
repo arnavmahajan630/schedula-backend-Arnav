@@ -1,5 +1,14 @@
-import { Controller, Get, Param, Query, UseGuards, Req, NotFoundException, ForbiddenException } from '@nestjs/common';
-import { JwtAuthGuard } from '../auth/guards/jwt-auth.guard';
+import {
+  Controller,
+  Get,
+  Param,
+  Query,
+  UseGuards,
+  Req,
+  NotFoundException,
+  ForbiddenException,
+} from '@nestjs/common';
+import { JwtAuthGuard } from '../auth/guards/jwt.guard';
 import { Request } from 'express';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Repository, ILike } from 'typeorm';
@@ -27,31 +36,33 @@ export class DoctorController {
     });
 
     if (!doctor) {
-      throw new NotFoundException(`Doctor profile not found for user ID: ${user.id}`);
+      throw new NotFoundException(
+        `Doctor profile not found for user ID: ${user.id}`,
+      );
     }
 
     return { message: 'Doctor Profile', data: doctor };
   }
 
   @Get('list')
-async listDoctors(@Query('search') search: string) {
-  let where: FindOptionsWhere<Doctor>[] | undefined = undefined;
+  async listDoctors(@Query('search') search: string) {
+    let where: FindOptionsWhere<Doctor>[] | undefined = undefined;
 
-  if (search) {
-    where = [
-      { clinic_name: ILike(`%${search}%`) },
-      { specialization: ILike(`%${search}%`) },
-      { user: { first_name: ILike(`%${search}%`) } }, // name search
-    ];
+    if (search) {
+      where = [
+        { clinic_name: ILike(`%${search}%`) },
+        { specialization: ILike(`%${search}%`) },
+        { user: { first_name: ILike(`%${search}%`) } }, // name search
+      ];
+    }
+
+    const doctors = await this.doctorRepo.find({
+      where,
+      relations: ['user'],
+    });
+
+    return { count: doctors.length, data: doctors };
   }
-
-  const doctors = await this.doctorRepo.find({
-    where,
-    relations: ['user'],
-  });
-
-  return { count: doctors.length, data: doctors };
-}
 
   @Get(':id')
   async getDoctorDetails(@Param('id') id: string) {
