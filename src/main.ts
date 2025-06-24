@@ -9,6 +9,14 @@ async function bootstrap() {
       transform: true, // Automatically transform payloads to DTO instances
     }),
   );
-  await app.listen(process.env.PORT ?? 3000);
+  app.enableCors({
+    origin: true,
+    credentials: true,
+  });
+  const port = process.env.PORT || 3000;
+  await app.listen(port);
+  console.log(
+    `🚀 Application is running on Port: ${port}, in ${process.env.NODE_ENV || 'development'} environment`,
+  );
 }
 bootstrap();
