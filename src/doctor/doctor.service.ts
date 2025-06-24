@@ -1,31 +1,32 @@
-import { Injectable, NotFoundException } from '@nestjs/common';
+import { BadRequestException, Injectable, NotFoundException } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
-import { Repository, ILike, FindOptionsWhere } from 'typeorm';
+import { Repository, ILike, FindOptionsWhere, Between } from 'typeorm';
 import { Doctor } from 'src/doctor/entities/doctor.entity';
+import { CreateDoctorAvailabilityDto } from './dto/create-availabilty.dto';
+import { DoctorAvailability } from './entities/doctor-availability.entity';
+import { DoctorTimeSlot } from './entities/doctor-time-slot.entity';
+import { TimeSlotStatus } from './enums/availability.enums';
+import { FindOperatorType } from 'typeorm';
 
 @Injectable()
 export class DoctorService {
   constructor(
-    @InjectRepository(Doctor)
-    private readonly doctorRepo: Repository<Doctor>,
+    @InjectRepository(Doctor) private doctorRepo: Repository<Doctor>,
+    @InjectRepository(DoctorAvailability) private availabilityRepo: Repository<DoctorAvailability>,
+    @InjectRepository(DoctorTimeSlot) private timeSlotRepo: Repository<DoctorTimeSlot>,
   ) {}
 
-  async getProfile(userId: number) {
+  async getProfile(doctorId: number) {
     const doctor = await this.doctorRepo.findOne({
-      where: { user_id: userId },
+      where: { user_id: doctorId },
       relations: ['user'],
     });
-
-    if (!doctor) {
-      throw new NotFoundException(`Doctor profile not found for user ID: ${userId}`);
-    }
-
+    if (!doctor) throw new NotFoundException('Doctor profile not found');
     return { message: 'Doctor Profile', data: doctor };
   }
 
   async listDoctors(search?: string) {
-    let where: FindOptionsWhere<Doctor>[] | undefined = undefined;
-
+    let where: FindOptionsWhere<Doctor> | FindOptionsWhere<Doctor>[] | undefined = undefined;
     if (search) {
       where = [
         { clinic_name: ILike(`%${search}%`) },
@@ -33,25 +34,91 @@ export class DoctorService {
         { user: { first_name: ILike(`%${search}%`) } },
       ];
     }
-
-    const doctors = await this.doctorRepo.find({
-      where,
-      relations: ['user'],
-    });
-
+    const doctors = await this.doctorRepo.find({ where, relations: ['user'] });
     return { count: doctors.length, data: doctors };
   }
 
-  async getDoctorDetails(userId: number) {
+  async getDoctorDetails(doctorId: number) {
     const doctor = await this.doctorRepo.findOne({
-      where: { user_id: userId },
+      where: { user_id: doctorId },
       relations: ['user'],
     });
+    if (!doctor) throw new NotFoundException('No doctor found');
+    return { data: doctor };
+  }
 
-    if (!doctor) {
-      throw new NotFoundException(`No doctor found with user ID: ${userId}`);
+  async createAvailability(doctorId: number, dto: CreateDoctorAvailabilityDto) {
+    const doctor = await this.doctorRepo.findOne({ where: { user_id: doctorId } });
+    if (!doctor) throw new NotFoundException('Doctor not found');
+
+    if (new Date(dto.date) < new Date(new Date().toDateString())) {
+      throw new BadRequestException('Date is in the past');
     }
 
-    return { data: doctor };
+    const existing = await this.availabilityRepo.findOne({
+      where: {
+        doctor: { user_id: doctorId },
+        date: dto.date,
+        startTime: dto.startTime,
+        endTime: dto.endTime,
+      },
+    });
+    if (existing) throw new BadRequestException('Duplicate availability');
+
+    const availability = this.availabilityRepo.create({ ...dto, doctor });
+    await this.availabilityRepo.save(availability);
+
+    const slots = this.generateSlots(dto.startTime, dto.endTime, 30).map(({ start, end }) =>
+      this.timeSlotRepo.create({
+        date: dto.date,
+        startTime: start,
+        endTime: end,
+        status: TimeSlotStatus.AVAILABLE,
+        doctor,
+        availability,
+      }),
+    );
+    await this.timeSlotRepo.save(slots);
+
+    return { message: 'Availability and slots created', availability, slots };
+  }
+
+  async getAvailableTimeSlots(doctorId: number, page: number, limit: number) {
+    const [slots, count] = await this.timeSlotRepo.findAndCount({
+      where: {
+        doctor: { user_id: doctorId },
+        status: TimeSlotStatus.AVAILABLE,
+      },
+      order: { date: 'ASC', startTime: 'ASC' },
+      skip: (page - 1) * limit,
+      take: limit,
+      relations: ['availability'],
+    });
+    return { total: count, page, limit, slots };
+  }
+
+  private generateSlots(startTime: string, endTime: string, interval: number): { start: string; end: string }[] {
+    const toMin = (t: string) => {
+      const [h, m] = t.split(':').map(Number);
+      return h * 60 + m;
+    };
+    const toStr = (m: number) => {
+      const h = Math.floor(m / 60);
+      const min = m % 60;
+      return `${String(h).padStart(2, '0')}:${String(min).padStart(2, '0')}`;
+    };
+
+    const startMins = toMin(startTime);
+    const endMins = toMin(endTime);
+
+    if (endMins <= startMins) {
+      throw new BadRequestException('End time must be after start time');
+    }
+
+    const slots: { start: string; end: string }[] = [];
+    for (let min = startMins; min + interval <= endMins; min += interval) {
+      slots.push({ start: toStr(min), end: toStr(min + interval) });
+    }
+    return slots;
   }
 }

@@ -6,10 +6,13 @@ import {
   UseGuards,
   Req,
   ForbiddenException,
+  Post,
+  Body,
 } from '@nestjs/common';
 import { JwtAuthGuard } from '../auth/guards/jwt.guard';
 import { Request } from 'express';
 import { DoctorService } from './doctor.service';
+import { CreateDoctorAvailabilityDto } from './dto/create-availabilty.dto';
 
 @Controller('api/v1/doctor')
 @UseGuards(JwtAuthGuard)
@@ -34,4 +37,28 @@ export class DoctorController {
   async getDoctorDetails(@Param('id') id: string) {
     return this.doctorService.getDoctorDetails(Number(id));
   }
+
+   @Post(':id/availability')
+  async setAvailability(
+    @Param('id') id: number,
+    @Body() dto: CreateDoctorAvailabilityDto,
+    @Req() req: Request,
+  ) {
+    const user = req.user as any;
+     if(user.role == 'doctor') {
+      return this.doctorService.createAvailability(id, dto);
+     }
+      throw new ForbiddenException('Access denied: Not a doctor');
+    
+  }
+
+   @Get(':id/availability')
+  async getAvailability(
+    @Param('id') id: number,
+    @Query('page') page = 1,
+    @Query('limit') limit = 10,
+  ) {
+    return this.doctorService.getAvailableTimeSlots(id, page, limit);
+  }
+
 }
