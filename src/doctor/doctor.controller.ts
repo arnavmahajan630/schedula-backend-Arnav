@@ -14,6 +14,7 @@ import { Request } from 'express';
 import { DoctorService } from './doctor.service';
 import { CreateDoctorAvailabilityDto } from './dto/create-availabilty.dto';
 import { JwtPayload } from 'src/auth/auth.service';
+import { UserRole } from 'src/auth/enums/user.enums';
 
 @Controller('api/v1/doctor')
 @UseGuards(JwtAuthGuard)
@@ -22,11 +23,11 @@ export class DoctorController {
 
   @Get('profile')
   async getProfile(@Req() req: Request) {
-    const user = req.user as any;
-    if (user.role !== 'doctor') {
+    const user = req.user as JwtPayload;
+    if (user.role !== UserRole.DOCTOR) {
       throw new ForbiddenException('Access denied: Not a doctor');
     }
-    return this.doctorService.getProfile(user.id);
+    return this.doctorService.getProfile(user.sub);
   }
 
   @Get('list')
@@ -39,21 +40,20 @@ export class DoctorController {
     return this.doctorService.getDoctorDetails(Number(id));
   }
 
-   @Post(':id/availability')
+  @Post(':id/availability')
   async setAvailability(
     @Param('id') id: number,
     @Body() dto: CreateDoctorAvailabilityDto,
     @Req() req: Request,
   ) {
     const user = req.user as JwtPayload;
-     if(user.role == 'doctor') {
+    if (user.role == UserRole.DOCTOR) {
       return this.doctorService.createAvailability(id, dto);
-     }
-      throw new ForbiddenException('Access denied: Not a doctor');
-    
+    }
+    throw new ForbiddenException('Access denied: Not a doctor');
   }
 
-   @Get(':id/availability')
+  @Get(':id/availability')
   async getAvailability(
     @Param('id') id: number,
     @Query('page') page = 1,
@@ -61,5 +61,4 @@ export class DoctorController {
   ) {
     return this.doctorService.getAvailableTimeSlots(id, page, limit);
   }
-
 }

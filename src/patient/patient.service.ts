@@ -17,7 +17,9 @@ export class PatientService {
     });
 
     if (!patient) {
-      throw new NotFoundException(`Patient profile not found for user ID: ${userId}`);
+      throw new NotFoundException(
+        `Patient profile not found for user ID: ${userId}`,
+      );
     }
 
     return { message: 'Patient Profile', data: patient };
