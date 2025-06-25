@@ -21,7 +21,15 @@ export class PatientService {
         `Patient profile not found for user ID: ${userId}`,
       );
     }
+    const patientWithoutCredentials = {
+      ...patient,
+      user: {
+        ...patient.user,
+        password_hash: undefined,
+        hashed_refresh_token: undefined,
+      },
+    };
 
-    return { message: 'Patient Profile', data: patient };
+    return { message: 'Patient Profile', data: patientWithoutCredentials };
   }
 }
