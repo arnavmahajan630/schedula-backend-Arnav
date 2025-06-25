@@ -6,12 +6,12 @@ import {
 } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { User } from './entities/user.entity';
-import { UserProvider, UserRole } from './dto/user.dto';
+import { UserProvider, UserRole } from './enums/user.enums';
 import { DataSource, Repository } from 'typeorm';
 import * as bcrypt from 'bcrypt';
 import { JwtService } from '@nestjs/jwt';
-import { Doctor } from './entities/doctor.entity';
-import { Patient } from './entities/patient.entity';
+import { Doctor } from '../doctor/entities/doctor.entity';
+import { Patient } from '../patient/entities/patient.entity';
 import { PatientSignupDto } from './dto/patient.dto';
 import { DoctorSignupDto } from './dto/doctor.dto';
 import { SigninDto, SignupDto } from './dto/base.dto';
@@ -72,8 +72,6 @@ export class AuthService {
             experience_years: doctorSignupDto.experience_years,
             clinic_name: doctorSignupDto.clinic_name,
             clinic_address: doctorSignupDto.clinic_address,
-            available_days: doctorSignupDto.available_days,
-            available_time_slots: doctorSignupDto.available_time_slots,
           });
           await manager.save(doctor);
         }
@@ -238,8 +236,6 @@ export class AuthService {
             experience_years: 0,
             clinic_name: '',
             clinic_address: '',
-            available_days: '',
-            available_time_slots: '',
           });
           await this.doctorRepository.save(doctor);
         }

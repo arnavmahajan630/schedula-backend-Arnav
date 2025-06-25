@@ -3,7 +3,7 @@ import { PassportStrategy } from '@nestjs/passport';
 import { AuthService } from '../auth.service';
 import { Profile, Strategy } from 'passport-google-oauth20';
 import { Request } from 'express';
-import { UserRole } from '../dto/user.dto';
+import { UserRole } from '../enums/user.enums';
 
 export interface googleUser {
   email: string;

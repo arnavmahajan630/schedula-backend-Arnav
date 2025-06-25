@@ -12,7 +12,7 @@ import { JwtAuthGuard } from '../auth/guards/jwt.guard';
 import { Request } from 'express';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Repository, ILike } from 'typeorm';
-import { Doctor } from '../auth/entities/doctor.entity';
+import { Doctor } from './entities/doctor.entity';
 import { FindOptionsWhere } from 'typeorm';
 
 @Controller('api/v1/doctor')

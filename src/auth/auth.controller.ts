@@ -17,7 +17,7 @@ import { SigninDto, SignupDto } from './dto/base.dto';
 import { AuthGuard } from '@nestjs/passport';
 import { Request, Response } from 'express';
 import { googleUser } from './strategies/google.strategy';
-import { UserRole } from './dto/user.dto';
+import { UserRole } from './enums/user.enums';
 import { GoogleAuthGuard } from './guards/google.guard';
 
 @Controller('api/v1/auth')

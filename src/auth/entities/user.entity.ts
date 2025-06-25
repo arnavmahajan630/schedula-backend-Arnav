@@ -6,11 +6,11 @@ import {
   UpdateDateColumn,
   OneToOne,
 } from 'typeorm';
-import { UserProvider, UserRole } from '../dto/user.dto';
-import { Doctor } from './doctor.entity';
-import { Patient } from './patient.entity';
+import { Doctor } from '../../doctor/entities/doctor.entity';
+import { Patient } from '../../patient/entities/patient.entity';
+import { UserProvider, UserRole } from '../enums/user.enums';
 
-@Entity()
+@Entity('users')
 export class User {
   @PrimaryGeneratedColumn()
   user_id: number;

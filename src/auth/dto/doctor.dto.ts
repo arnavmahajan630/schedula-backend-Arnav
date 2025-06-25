@@ -21,12 +21,4 @@ export class DoctorSignupDto extends UserSignupDto {
   @IsNotEmpty()
   @IsString()
   clinic_address: string;
-
-  @IsNotEmpty()
-  @IsString()
-  available_days: string;
-
-  @IsNotEmpty()
-  @IsString()
-  available_time_slots: string;
 }
