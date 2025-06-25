@@ -13,6 +13,7 @@ import { JwtAuthGuard } from '../auth/guards/jwt.guard';
 import { Request } from 'express';
 import { DoctorService } from './doctor.service';
 import { CreateDoctorAvailabilityDto } from './dto/create-availabilty.dto';
+import { JwtPayload } from 'src/auth/auth.service';
 
 @Controller('api/v1/doctor')
 @UseGuards(JwtAuthGuard)
@@ -44,7 +45,7 @@ export class DoctorController {
     @Body() dto: CreateDoctorAvailabilityDto,
     @Req() req: Request,
   ) {
-    const user = req.user as any;
+    const user = req.user as JwtPayload;
      if(user.role == 'doctor') {
       return this.doctorService.createAvailability(id, dto);
      }

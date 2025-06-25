@@ -84,18 +84,41 @@ export class DoctorService {
   }
 
   async getAvailableTimeSlots(doctorId: number, page: number, limit: number) {
-    const [slots, count] = await this.timeSlotRepo.findAndCount({
-      where: {
-        doctor: { user_id: doctorId },
-        status: TimeSlotStatus.AVAILABLE,
-      },
-      order: { date: 'ASC', startTime: 'ASC' },
-      skip: (page - 1) * limit,
-      take: limit,
-      relations: ['availability'],
-    });
-    return { total: count, page, limit, slots };
+  const [slots, count] = await this.timeSlotRepo.findAndCount({
+    where: {
+      doctor: { user_id: doctorId },
+      status: TimeSlotStatus.AVAILABLE,
+    },
+    order: { date: 'ASC', startTime: 'ASC' },
+    skip: (page - 1) * limit,
+    take: limit,
+    relations: ['availability'],
+  });
+
+  if (!slots.length) {
+    return {
+      total: 0,
+      page,
+      limit,
+      slots: [],
+    };
   }
+
+  const { date, session, weekdays } = slots[0].availability;
+
+  return {
+    total: count,
+    page,
+    limit,
+    date,
+    session,
+    weekdays,
+    slots: slots.map((s) => ({
+      startTime: s.startTime.slice(0, 5),
+      endTime: s.endTime.slice(0, 5),
+    })),
+  };
+}
 
   private generateSlots(
   startTime: string,
