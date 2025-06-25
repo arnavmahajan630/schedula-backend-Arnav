@@ -16,7 +16,7 @@ import { CreateDoctorAvailabilityDto } from './dto/create-availabilty.dto';
 import { JwtPayload } from 'src/auth/auth.service';
 import { UserRole } from 'src/auth/enums/user.enums';
 
-@Controller('api/v1/doctor')
+@Controller('api/v1/doctors')
 @UseGuards(JwtAuthGuard)
 export class DoctorController {
   constructor(private readonly doctorService: DoctorService) {}
@@ -30,9 +30,9 @@ export class DoctorController {
     return this.doctorService.getProfile(user.sub);
   }
 
-  @Get('list')
-  async listDoctors(@Query('search') search: string) {
-    return this.doctorService.listDoctors(search);
+  @Get('search')
+  async searchDoctors(@Query('query') query: string) {
+    return this.doctorService.searchDoctors(query);
   }
 
   @Get(':id')
@@ -40,25 +40,24 @@ export class DoctorController {
     return this.doctorService.getDoctorDetails(Number(id));
   }
 
-  @Post(':id/availability')
-  async setAvailability(
-    @Param('id') id: number,
-    @Body() dto: CreateDoctorAvailabilityDto,
-    @Req() req: Request,
-  ) {
-    const user = req.user as JwtPayload;
-    if (user.role == UserRole.DOCTOR) {
-      return this.doctorService.createAvailability(id, dto);
-    }
-    throw new ForbiddenException('Access denied: Not a doctor');
-  }
-
   @Get(':id/availability')
   async getAvailability(
     @Param('id') id: number,
     @Query('page') page = 1,
-    @Query('limit') limit = 10,
+    @Query('limit') limit = 5,
   ) {
     return this.doctorService.getAvailableTimeSlots(id, page, limit);
+  }
+
+  @Post('availability')
+  async setAvailability(
+    @Body() dto: CreateDoctorAvailabilityDto,
+    @Req() req: Request,
+  ) {
+    const user = req.user as JwtPayload;
+    if (user.role !== UserRole.DOCTOR) {
+      throw new ForbiddenException('Access denied: Not a doctor');
+    }
+    return this.doctorService.createAvailability(user.sub, dto);
   }
 }

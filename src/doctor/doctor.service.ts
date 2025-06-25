@@ -27,23 +27,15 @@ export class DoctorService {
       relations: ['user'],
     });
     if (!doctor) throw new NotFoundException('Doctor profile not found');
-    return { message: 'Doctor Profile', data: doctor };
-  }
-
-  async listDoctors(search?: string) {
-    let where:
-      | FindOptionsWhere<Doctor>
-      | FindOptionsWhere<Doctor>[]
-      | undefined = undefined;
-    if (search) {
-      where = [
-        { clinic_name: ILike(`%${search}%`) },
-        { specialization: ILike(`%${search}%`) },
-        { user: { first_name: ILike(`%${search}%`) } },
-      ];
-    }
-    const doctors = await this.doctorRepo.find({ where, relations: ['user'] });
-    return { count: doctors.length, data: doctors };
+    const doctorWithoutCredentials = {
+      ...doctor,
+      user: {
+        ...doctor.user,
+        password_hash: undefined,
+        hashed_refresh_token: undefined,
+      },
+    };
+    return { message: 'Doctor Profile', data: doctorWithoutCredentials };
   }
 
   async getDoctorDetails(doctorId: number) {
@@ -52,7 +44,40 @@ export class DoctorService {
       relations: ['user'],
     });
     if (!doctor) throw new NotFoundException('No doctor found');
-    return { data: doctor };
+    const doctorWithoutCredentials = {
+      ...doctor,
+      user: {
+        ...doctor.user,
+        password_hash: undefined,
+        hashed_refresh_token: undefined,
+      },
+    };
+    return { data: doctorWithoutCredentials };
+  }
+
+  async searchDoctors(query?: string) {
+    let where:
+      | FindOptionsWhere<Doctor>
+      | FindOptionsWhere<Doctor>[]
+      | undefined = undefined;
+    if (query) {
+      where = [
+        { clinic_name: ILike(`%${query}%`) },
+        { specialization: ILike(`%${query}%`) },
+        { user: { first_name: ILike(`%${query}%`) } },
+        { user: { last_name: ILike(`%${query}%`) } },
+      ];
+    }
+    const doctors = await this.doctorRepo.find({ where, relations: ['user'] });
+    const doctorsWithoutCredentials = doctors.map((doctor) => ({
+      ...doctor,
+      user: {
+        ...doctor.user,
+        password_hash: undefined,
+        hashed_refresh_token: undefined,
+      },
+    }));
+    return { total_results: doctors.length, data: doctorsWithoutCredentials };
   }
 
   async createAvailability(doctorId: number, dto: CreateDoctorAvailabilityDto) {
@@ -91,7 +116,7 @@ export class DoctorService {
     );
     await this.timeSlotRepo.save(slots);
 
-    return { message: 'Availability and slots created', availability, slots };
+    return { message: 'Availability and slots created', availability };
   }
 
   async getAvailableTimeSlots(doctorId: number, page: number, limit: number) {
