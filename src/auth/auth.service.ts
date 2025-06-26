@@ -20,7 +20,7 @@ import { googleUser } from './strategies/google.strategy';
 export interface JwtPayload {
   email: string;
   sub: number;
-  role: string;
+  role: UserRole;
 }
 
 @Injectable()

@@ -5,76 +5,59 @@ import {
   Query,
   UseGuards,
   Req,
-  NotFoundException,
   ForbiddenException,
+  Post,
+  Body,
 } from '@nestjs/common';
 import { JwtAuthGuard } from '../auth/guards/jwt.guard';
 import { Request } from 'express';
-import { InjectRepository } from '@nestjs/typeorm';
-import { Repository, ILike } from 'typeorm';
-import { Doctor } from './entities/doctor.entity';
-import { FindOptionsWhere } from 'typeorm';
+import { DoctorService } from './doctor.service';
+import { CreateDoctorAvailabilityDto } from './dto/create-availabilty.dto';
+import { JwtPayload } from 'src/auth/auth.service';
+import { UserRole } from 'src/auth/enums/user.enums';
 
-@Controller('api/v1/doctor')
+@Controller('api/v1/doctors')
 @UseGuards(JwtAuthGuard)
 export class DoctorController {
-  constructor(
-    @InjectRepository(Doctor)
-    private readonly doctorRepo: Repository<Doctor>,
-  ) {}
+  constructor(private readonly doctorService: DoctorService) {}
 
   @Get('profile')
   async getProfile(@Req() req: Request) {
-    const user = req.user as any;
-    if (user.role !== 'doctor') {
+    const user = req.user as JwtPayload;
+    if (user.role !== UserRole.DOCTOR) {
       throw new ForbiddenException('Access denied: Not a doctor');
     }
-
-    const doctor = await this.doctorRepo.findOne({
-      where: { user_id: user.id },
-      relations: ['user'],
-    });
-
-    if (!doctor) {
-      throw new NotFoundException(
-        `Doctor profile not found for user ID: ${user.id}`,
-      );
-    }
-
-    return { message: 'Doctor Profile', data: doctor };
+    return this.doctorService.getProfile(user.sub);
   }
 
-  @Get('list')
-  async listDoctors(@Query('search') search: string) {
-    let where: FindOptionsWhere<Doctor>[] | undefined = undefined;
-
-    if (search) {
-      where = [
-        { clinic_name: ILike(`%${search}%`) },
-        { specialization: ILike(`%${search}%`) },
-        { user: { first_name: ILike(`%${search}%`) } }, // name search
-      ];
-    }
-
-    const doctors = await this.doctorRepo.find({
-      where,
-      relations: ['user'],
-    });
-
-    return { count: doctors.length, data: doctors };
+  @Get('search')
+  async searchDoctors(@Query('query') query: string) {
+    return this.doctorService.searchDoctors(query);
   }
 
   @Get(':id')
   async getDoctorDetails(@Param('id') id: string) {
-    const doctor = await this.doctorRepo.findOne({
-      where: { user_id: Number(id) },
-      relations: ['user'],
-    });
+    return this.doctorService.getDoctorDetails(Number(id));
+  }
 
-    if (!doctor) {
-      throw new NotFoundException(`No doctor found with user ID: ${id}`);
+  @Get(':id/availability')
+  async getAvailability(
+    @Param('id') id: number,
+    @Query('page') page = 1,
+    @Query('limit') limit = 5,
+  ) {
+    return this.doctorService.getAvailableTimeSlots(id, page, limit);
+  }
+
+  @Post('availability')
+  async setAvailability(
+    @Body() dto: CreateDoctorAvailabilityDto,
+    @Req() req: Request,
+  ) {
+    const user = req.user as JwtPayload;
+    if (user.role !== UserRole.DOCTOR) {
+      throw new ForbiddenException('Access denied: Not a doctor');
     }
-
-    return { data: doctor };
+    return this.doctorService.createAvailability(user.sub, dto);
   }
 }

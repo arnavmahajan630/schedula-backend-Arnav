@@ -5,12 +5,14 @@ import {
   ManyToOne,
   OneToMany,
   JoinColumn,
+  Unique,
 } from 'typeorm';
 import { Doctor } from './doctor.entity';
 import { Session, Weekday } from '../enums/availability.enums';
 import { DoctorTimeSlot } from './doctor-time-slot.entity';
 
 @Entity('doctor_availabilities')
+@Unique(['doctor', 'date', 'startTime', 'endTime'])
 export class DoctorAvailability {
   @PrimaryGeneratedColumn()
   availability_id: number;
