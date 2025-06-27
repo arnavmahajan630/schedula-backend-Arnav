@@ -69,12 +69,12 @@ export class User {
   // Functions
   get profile() {
     return {
-      user_id: this.user_id,
       email: this.email,
       first_name: this.first_name,
       last_name: this.last_name,
       phone_number: this.phone_number,
       provider: this.provider,
+      role: this.role,
     };
   }
 }

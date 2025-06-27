@@ -1,16 +1,16 @@
 import {
-  IsDateString,
   IsString,
   IsEnum,
   IsArray,
   ArrayNotEmpty,
+  IsDate,
 } from 'class-validator';
 import { Session, Weekday } from '../enums/availability.enums';
-import { Transform } from 'class-transformer';
+import { Type } from 'class-transformer';
 
 export class CreateDoctorAvailabilityDto {
-  @IsDateString()
-  @Transform(({ value }) => new Date(value as string))
+  @Type(() => Date)
+  @IsDate()
   date: Date;
 
   @IsString()

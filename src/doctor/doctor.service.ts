@@ -10,6 +10,7 @@ import { CreateDoctorAvailabilityDto } from './dto/create-availabilty.dto';
 import { DoctorAvailability } from './entities/doctor-availability.entity';
 import { DoctorTimeSlot } from './entities/doctor-time-slot.entity';
 import { TimeSlotStatus } from './enums/availability.enums';
+import { ScheduleType } from './enums/schedule-type.enums';
 
 @Injectable()
 export class DoctorService {
@@ -27,15 +28,11 @@ export class DoctorService {
       relations: ['user'],
     });
     if (!doctor) throw new NotFoundException('Doctor profile not found');
-    const doctorWithoutCredentials = {
+    const doctorWithProfile = {
       ...doctor,
-      user: {
-        ...doctor.user,
-        password_hash: undefined,
-        hashed_refresh_token: undefined,
-      },
+      user: doctor.user.profile,
     };
-    return { message: 'Doctor Profile', data: doctorWithoutCredentials };
+    return { message: 'Doctor Profile', data: doctorWithProfile };
   }
 
   async getDoctorDetails(doctorId: number) {
@@ -44,15 +41,11 @@ export class DoctorService {
       relations: ['user'],
     });
     if (!doctor) throw new NotFoundException('No doctor found');
-    const doctorWithoutCredentials = {
+    const doctorWithProfile = {
       ...doctor,
-      user: {
-        ...doctor.user,
-        password_hash: undefined,
-        hashed_refresh_token: undefined,
-      },
+      user: doctor.user.profile,
     };
-    return { data: doctorWithoutCredentials };
+    return { message: 'Doctor Details', data: doctorWithProfile };
   }
 
   async searchDoctors(query?: string) {
@@ -69,20 +62,17 @@ export class DoctorService {
       ];
     }
     const doctors = await this.doctorRepo.find({ where, relations: ['user'] });
-    const doctorsWithoutCredentials = doctors.map((doctor) => ({
+    const doctorWithProfile = doctors.map((doctor) => ({
       ...doctor,
-      user: {
-        ...doctor.user,
-        password_hash: undefined,
-        hashed_refresh_token: undefined,
-      },
+      user: doctor.user.profile,
     }));
-    return { total_results: doctors.length, data: doctorsWithoutCredentials };
+    return { total_results: doctors.length, data: doctorWithProfile };
   }
 
   async createAvailability(doctorId: number, dto: CreateDoctorAvailabilityDto) {
     const doctor = await this.doctorRepo.findOne({
       where: { user_id: doctorId },
+      relations: ['user'],
     });
     if (!doctor) throw new NotFoundException('Doctor not found');
 
@@ -116,7 +106,10 @@ export class DoctorService {
     );
     await this.timeSlotRepo.save(slots);
 
-    return { message: 'Availability and slots created', availability };
+    return {
+      message: 'Availability and slots created',
+      data: { ...availability, doctor: doctor.user.profile },
+    };
   }
 
   async getAvailableTimeSlots(doctorId: number, page: number, limit: number) {
@@ -150,6 +143,7 @@ export class DoctorService {
       session,
       weekdays,
       slots: slots.map((s) => ({
+        date: s.date,
         startTime: s.startTime.slice(0, 5),
         endTime: s.endTime.slice(0, 5),
       })),
@@ -157,59 +151,57 @@ export class DoctorService {
   }
 
   private generateSlots(
-  startTime: string,
-  endTime: string,
-  interval: number = 30 // default 30-minute slots
-): { start: string; end: string }[] {
-  const toMin = (t: string) => {
-    const [h, m] = t.split(':').map(Number);
-    return h * 60 + m;
-  };
+    startTime: string,
+    endTime: string,
+    interval: number = 30, // default 30-minute slots
+  ): { start: string; end: string }[] {
+    const toMin = (t: string) => {
+      const [h, m] = t.split(':').map(Number);
+      return h * 60 + m;
+    };
 
-  const toStr = (m: number) => {
-    const h = Math.floor(m / 60);
-    const min = m % 60;
-    return `${String(h).padStart(2, '0')}:${String(min).padStart(2, '0')}`;
-  };
+    const toStr = (m: number) => {
+      const h = Math.floor(m / 60);
+      const min = m % 60;
+      return `${String(h).padStart(2, '0')}:${String(min).padStart(2, '0')}`;
+    };
 
-  const startMins = toMin(startTime);
-  const endMins = toMin(endTime);
+    const startMins = toMin(startTime);
+    const endMins = toMin(endTime);
 
-  if (endMins <= startMins) {
-    throw new BadRequestException('End time must be after start time');
+    if (endMins <= startMins) {
+      throw new BadRequestException('End time must be after start time');
+    }
+
+    const slots: { start: string; end: string }[] = [];
+    let current = startMins;
+
+    while (current + interval <= endMins) {
+      slots.push({
+        start: toStr(current),
+        end: toStr(current + interval),
+      });
+      current += interval;
+    }
+
+    return slots;
   }
 
-  const slots: { start: string; end: string }[] = [];
-  let current = startMins;
-
-  while (current + interval <= endMins) {
-    slots.push({
-      start: toStr(current),
-      end: toStr(current + interval),
+  async updateScheduleType(
+    doctorId: number,
+    scheduleType: ScheduleType,
+  ): Promise<{ message: string }> {
+    const doctor = await this.doctorRepo.findOne({
+      where: { user_id: doctorId },
     });
-    current += interval;
+
+    if (!doctor) {
+      throw new NotFoundException('Doctor not found');
+    }
+
+    doctor.schedule_Type = scheduleType;
+    await this.doctorRepo.save(doctor);
+
+    return { message: `Doctor schedule type updated to ${scheduleType}` };
   }
-
-  return slots;
-}
-
-async updateScheduleType(
-  doctorId: number,
-  scheduleType: 'stream' | 'wave',
-): Promise<{ message: string }> {
-  const doctor = await this.doctorRepo.findOne({
-    where: { user_id: doctorId },
-  });
-
-  if (!doctor) {
-    throw new NotFoundException('Doctor not found');
-  }
-
-  doctor.schedule_Type = scheduleType;
-  await this.doctorRepo.save(doctor);
-
-  return { message: `Doctor schedule type updated to ${scheduleType}` };
-}
-
-
 }
