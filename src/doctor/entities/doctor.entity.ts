@@ -32,11 +32,15 @@ export class Doctor {
   @Column()
   clinic_address: string;
 
+  @Column({ type: 'varchar', default: 'stream' })
+  schedule_Type: 'stream' | 'wave';
+
   @CreateDateColumn()
   created_at: Date;
 
   @UpdateDateColumn()
   updated_at: Date;
+
 
   // Relationships
   @OneToOne(() => User, (user) => user.doctor, { onDelete: 'CASCADE' })

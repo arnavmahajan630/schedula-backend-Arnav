@@ -8,6 +8,8 @@ import {
   ForbiddenException,
   Post,
   Body,
+  Patch,
+  UnauthorizedException,
 } from '@nestjs/common';
 import { JwtAuthGuard } from '../auth/guards/jwt.guard';
 import { Request } from 'express';
@@ -15,6 +17,7 @@ import { DoctorService } from './doctor.service';
 import { CreateDoctorAvailabilityDto } from './dto/create-availabilty.dto';
 import { JwtPayload } from 'src/auth/auth.service';
 import { UserRole } from 'src/auth/enums/user.enums';
+import { UpdateScheduleDto } from './dto/update-schedule.dto';
 
 @Controller('api/v1/doctors')
 @UseGuards(JwtAuthGuard)
@@ -60,4 +63,22 @@ export class DoctorController {
     }
     return this.doctorService.createAvailability(user.sub, dto);
   }
+
+  @Patch(':id/schedule_Type')
+async updateScheduleType(
+  @Param('id') doctorId: number,
+  @Body() dto: UpdateScheduleDto,
+  @Req() req: any,
+) {
+  if (req.user.role !== 'doctor') {
+    throw new UnauthorizedException('UnAuthorized: Not a doctor');
+  }
+
+  if (req.params.id != req.user.sub) {
+    throw new ForbiddenException('Forbidden Cannot Update');
+  }
+
+  return this.doctorService.updateScheduleType(doctorId, dto.schedule_Type);
+}
+
 }

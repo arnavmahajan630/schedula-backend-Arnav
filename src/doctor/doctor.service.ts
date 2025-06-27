@@ -193,4 +193,23 @@ export class DoctorService {
   return slots;
 }
 
+async updateScheduleType(
+  doctorId: number,
+  scheduleType: 'stream' | 'wave',
+): Promise<{ message: string }> {
+  const doctor = await this.doctorRepo.findOne({
+    where: { user_id: doctorId },
+  });
+
+  if (!doctor) {
+    throw new NotFoundException('Doctor not found');
+  }
+
+  doctor.schedule_Type = scheduleType;
+  await this.doctorRepo.save(doctor);
+
+  return { message: `Doctor schedule type updated to ${scheduleType}` };
+}
+
+
 }
