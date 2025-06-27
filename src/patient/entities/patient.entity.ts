@@ -43,6 +43,5 @@ export class Patient {
 
   // Relations
   @OneToMany(() => Appointment, (appointment) => appointment.patient)
-appointments: Appointment[];
-
+  appointments: Appointment[];
 }

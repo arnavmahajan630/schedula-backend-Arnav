@@ -4,25 +4,53 @@ import {
   ManyToOne,
   CreateDateColumn,
   Unique,
+  UpdateDateColumn,
+  Column,
+  JoinColumn,
 } from 'typeorm';
 import { Patient } from 'src/patient/entities/patient.entity';
 import { DoctorTimeSlot } from 'src/doctor/entities/doctor-time-slot.entity';
+import { Doctor } from 'src/doctor/entities/doctor.entity';
+import { AppointmentStatus } from '../enums/appointment-status.enum';
 
 @Entity('appointments')
-@Unique(['patient', 'doctorTimeSlot']) // one appointment per patient per slot
+@Unique(['patient', 'time_slot']) // one appointment per patient per slot
 export class Appointment {
   @PrimaryGeneratedColumn()
-  id: number;
+  appointment_id: number;
 
-  @ManyToOne(() => Patient, { eager: true })
+  @Column({
+    type: 'enum',
+    enum: AppointmentStatus,
+    default: AppointmentStatus.SCHEDULED,
+    name: 'appointment_status',
+  })
+  appointment_status: AppointmentStatus;
+
+  @Column({ type: 'varchar', nullable: true })
+  reason: string;
+
+  @Column({ type: 'text', nullable: true })
+  notes: string;
+
+  // Relations
+  @ManyToOne(() => Doctor, (doctor) => doctor.appointments)
+  @JoinColumn({ name: 'doctor_id' })
+  doctor: Doctor;
+
+  @ManyToOne(() => Patient, (patient) => patient.appointments)
+  @JoinColumn({ name: 'patient_id' })
   patient: Patient;
 
   @ManyToOne(() => DoctorTimeSlot, (slot) => slot.appointments, {
-    eager: true,
     onDelete: 'CASCADE',
   })
-  doctorTimeSlot: DoctorTimeSlot;
+  @JoinColumn({ name: 'time_slot_id' })
+  time_slot: DoctorTimeSlot;
 
   @CreateDateColumn()
   created_at: Date;
+
+  @UpdateDateColumn()
+  updated_at: Date;
 }
