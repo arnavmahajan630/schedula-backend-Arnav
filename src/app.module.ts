@@ -8,6 +8,7 @@ import { AppController } from './app.controller';
 import { AppService } from './app.service';
 import { DoctorModule } from './doctor/doctor.module';
 import { PatientModule } from './patient/patient.module';
+import { AppointmentModule } from './appointment/appointment.module';
 
 @Module({
   imports: [
@@ -18,7 +19,8 @@ import { PatientModule } from './patient/patient.module';
     TypeOrmModule.forRoot(AppDataSource.options),
     AuthModule,
     DoctorModule,
-    PatientModule
+    PatientModule,
+    AppointmentModule
   ],
   controllers: [AppController],
   providers: [AppService],

@@ -4,10 +4,12 @@ import {
   Column,
   ManyToOne,
   JoinColumn,
+  OneToMany,
 } from 'typeorm';
 import { DoctorAvailability } from './doctor-availability.entity';
 import { Doctor } from './doctor.entity';
 import { TimeSlotStatus } from '../enums/availability.enums';
+import { Appointment } from 'src/appointment/entities/appointment.entity';
 
 @Entity('doctor_time_slots')
 export class DoctorTimeSlot {
@@ -30,6 +32,9 @@ export class DoctorTimeSlot {
   })
   status: TimeSlotStatus;
 
+  @Column({ type: 'int', nullable: true }) // if null, means stream type
+    maxPatients?: number;
+
   // Relationships
   @ManyToOne(() => Doctor, (doctor) => doctor.time_slots, {
     onDelete: 'CASCADE',
@@ -44,4 +49,8 @@ export class DoctorTimeSlot {
   )
   @JoinColumn({ name: 'availability_id' })
   availability: DoctorAvailability;
+
+  @OneToMany(() => Appointment, (appt) => appt.doctorTimeSlot)
+appointments: Appointment[];
+
 }
