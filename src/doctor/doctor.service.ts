@@ -157,44 +157,40 @@ export class DoctorService {
   }
 
   private generateSlots(
-    startTime: string,
-    endTime: string,
-    interval: number,
-    breakMinutes: number = 5,
-  ): { start: string; end: string }[] {
-    const toMin = (t: string) => {
-      const [h, m] = t.split(':').map(Number);
-      return h * 60 + m;
-    };
+  startTime: string,
+  endTime: string,
+  interval: number = 30 // default 30-minute slots
+): { start: string; end: string }[] {
+  const toMin = (t: string) => {
+    const [h, m] = t.split(':').map(Number);
+    return h * 60 + m;
+  };
 
-    const toStr = (m: number) => {
-      const h = Math.floor(m / 60);
-      const min = m % 60;
-      return `${String(h).padStart(2, '0')}:${String(min).padStart(2, '0')}`;
-    };
+  const toStr = (m: number) => {
+    const h = Math.floor(m / 60);
+    const min = m % 60;
+    return `${String(h).padStart(2, '0')}:${String(min).padStart(2, '0')}`;
+  };
 
-    const startMins = toMin(startTime);
-    const endMins = toMin(endTime);
+  const startMins = toMin(startTime);
+  const endMins = toMin(endTime);
 
-    if (endMins <= startMins) {
-      throw new BadRequestException('End time must be after start time');
-    }
-
-    const slots: { start: string; end: string }[] = [];
-    let current = startMins;
-
-    while (current + interval <= endMins) {
-      const slotStart = current;
-      const slotEnd = current + interval;
-
-      slots.push({
-        start: toStr(slotStart),
-        end: toStr(slotEnd),
-      });
-
-      current = slotEnd + breakMinutes; // add break after each slot
-    }
-
-    return slots;
+  if (endMins <= startMins) {
+    throw new BadRequestException('End time must be after start time');
   }
+
+  const slots: { start: string; end: string }[] = [];
+  let current = startMins;
+
+  while (current + interval <= endMins) {
+    slots.push({
+      start: toStr(current),
+      end: toStr(current + interval),
+    });
+    current += interval;
+  }
+
+  return slots;
+}
+
 }
