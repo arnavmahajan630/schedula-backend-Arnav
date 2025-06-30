@@ -27,6 +27,9 @@ export class Appointment {
   })
   appointment_status: AppointmentStatus;
 
+  @Column()
+  scheduled_on: Date;
+
   @Column({ type: 'varchar', nullable: true })
   reason: string;
 

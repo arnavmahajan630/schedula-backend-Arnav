@@ -40,7 +40,7 @@ export class Doctor {
     default: ScheduleType.STREAM,
     name: 'schedule_type',
   })
-  schedule_Type: ScheduleType;
+  schedule_type: ScheduleType;
 
   @CreateDateColumn()
   created_at: Date;
