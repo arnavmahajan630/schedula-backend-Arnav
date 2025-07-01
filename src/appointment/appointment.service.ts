@@ -52,8 +52,8 @@ export class AppointmentService {
         where: {
           doctor: { user_id: dto.doctor_id },
           date: dto.date,
-          startTime: dto.start_time,
-          endTime: dto.end_time,
+          start_time: dto.start_time,
+          end_time: dto.end_time,
         },
       });
       if (!timeSlot) {
@@ -123,7 +123,7 @@ export class AppointmentService {
           },
         });
 
-        const maxPatients = timeSlot.maxPatients || 3;
+        const maxPatients = timeSlot.max_patients || 3;
         const currentBookings = existingAppointments.length;
 
         if (currentBookings >= maxPatients) {

@@ -22,10 +22,10 @@ export class DoctorTimeSlot {
   date: Date;
 
   @Column({ type: 'time' })
-  startTime: string;
+  start_time: string;
 
   @Column({ type: 'time' })
-  endTime: string;
+  end_time: string;
 
   @Column({
     type: 'enum',
@@ -35,7 +35,7 @@ export class DoctorTimeSlot {
   status: TimeSlotStatus;
 
   @Column({ type: 'int', nullable: true }) // if null, means stream type
-  maxPatients?: number;
+  max_patients?: number;
 
   @CreateDateColumn()
   created_at: Date;

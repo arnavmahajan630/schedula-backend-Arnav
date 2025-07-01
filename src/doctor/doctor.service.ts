@@ -84,8 +84,8 @@ export class DoctorService {
       where: {
         doctor: { user_id: doctorId },
         date: dto.date,
-        startTime: dto.startTime,
-        endTime: dto.endTime,
+        start_time: dto.start_time,
+        end_time: dto.end_time,
       },
     });
     if (existing) throw new BadRequestException('Duplicate availability');
@@ -93,12 +93,12 @@ export class DoctorService {
     const availability = this.availabilityRepo.create({ ...dto, doctor });
     await this.availabilityRepo.save(availability);
 
-    const slots = this.generateSlots(dto.startTime, dto.endTime, 30).map(
+    const slots = this.generateSlots(dto.start_time, dto.end_time, 30).map(
       ({ start, end }) =>
         this.timeSlotRepo.create({
           date: dto.date,
-          startTime: start,
-          endTime: end,
+          start_time: start,
+          end_time: end,
           status: TimeSlotStatus.AVAILABLE,
           doctor,
           availability,
@@ -118,7 +118,7 @@ export class DoctorService {
         doctor: { user_id: doctorId },
         status: TimeSlotStatus.AVAILABLE,
       },
-      order: { date: 'ASC', startTime: 'ASC' },
+      order: { date: 'ASC', start_time: 'ASC' },
       skip: (page - 1) * limit,
       take: limit,
       relations: ['availability'],
@@ -144,8 +144,8 @@ export class DoctorService {
       weekdays,
       slots: slots.map((s) => ({
         date: s.date,
-        startTime: s.startTime.slice(0, 5),
-        endTime: s.endTime.slice(0, 5),
+        startTime: s.start_time.slice(0, 5),
+        endTime: s.end_time.slice(0, 5),
       })),
     };
   }
