@@ -46,12 +46,33 @@ export class AppointmentService {
         throw new NotFoundException('Patient not found');
       }
 
+      //Validation: A patient can book only one slot per session (morning/evening) per day with the same doctor
+      const isAlreadyBooked = await this.appointmentRepo.findOne({
+        where: {
+          doctor: { user_id: dto.doctor_id },
+          patient: { user_id: patientId },
+          time_slot: {
+            date: dto.date,
+            session: dto.session,
+          },
+          appointment_status:
+            AppointmentStatus.SCHEDULED || AppointmentStatus.COMPLETED,
+        },
+      });
+
+      if (isAlreadyBooked) {
+        throw new ConflictException(
+          `Patient already has an appointment with this doctor on ${dto.date.toISOString().split('T')[0]} during the ${dto.session} session`,
+        );
+      }
+
       const scheduleType = doctor.schedule_type;
 
       const timeSlot = await this.timeSlotRepo.findOne({
         where: {
           doctor: { user_id: dto.doctor_id },
           date: dto.date,
+          session: dto.session,
           start_time: dto.start_time,
           end_time: dto.end_time,
         },
@@ -65,21 +86,7 @@ export class AppointmentService {
 
       // For STREAM schedule type.
       if (scheduleType === ScheduleType.STREAM) {
-        // Check if patient already has an appointment for this time slot
-        const existingAppointment = await this.appointmentRepo.findOne({
-          where: {
-            doctor: { user_id: dto.doctor_id },
-            patient: { user_id: patientId },
-            time_slot: timeSlot,
-            appointment_status: AppointmentStatus.SCHEDULED,
-          },
-        });
-        if (existingAppointment) {
-          throw new ConflictException(
-            'Patient already has an appointment for this time slot',
-          );
-        }
-
+        // Create the appointment if the slot is available
         const appointment = this.appointmentRepo.create({
           patient: { user_id: patientId },
           doctor: { user_id: dto.doctor_id },
@@ -100,21 +107,6 @@ export class AppointmentService {
 
       // For WAVE schedule type.
       if (scheduleType === ScheduleType.WAVE) {
-        // Check if patient already has an appointment for this slotj
-        const existingPatientAppointment = await this.appointmentRepo.findOne({
-          where: {
-            patient: { user_id: patientId },
-            time_slot: { timeslot_id: timeSlot.timeslot_id },
-            appointment_status: AppointmentStatus.SCHEDULED,
-          },
-        });
-
-        if (existingPatientAppointment) {
-          throw new ConflictException(
-            'Patient already has an appointment for this time slot',
-          );
-        }
-
         const existingAppointments = await this.appointmentRepo.find({
           where: {
             doctor: { user_id: dto.doctor_id },
@@ -159,6 +151,7 @@ export class AppointmentService {
       ) {
         throw error; // Re-throw known exceptions
       }
+      console.error('Error creating appointment:', error);
       throw new InternalServerErrorException();
     }
   }

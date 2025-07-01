@@ -110,6 +110,7 @@ export class DoctorService {
         where: {
           doctor: { user_id: doctorId },
           date: dto.date,
+          session: dto.session,
           start_time: dto.start_time,
           end_time: dto.end_time,
         },
@@ -123,6 +124,7 @@ export class DoctorService {
         ({ start, end }) =>
           this.timeSlotRepo.create({
             date: dto.date,
+            session: dto.session,
             start_time: start,
             end_time: end,
             status: TimeSlotStatus.AVAILABLE,
