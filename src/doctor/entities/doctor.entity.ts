@@ -11,6 +11,8 @@ import {
 import { User } from '../../auth/entities/user.entity';
 import { DoctorAvailability } from './doctor-availability.entity';
 import { DoctorTimeSlot } from './doctor-time-slot.entity';
+import { ScheduleType } from '../enums/schedule-type.enums';
+import { Appointment } from 'src/appointment/entities/appointment.entity';
 
 @Entity('doctors')
 export class Doctor {
@@ -32,6 +34,14 @@ export class Doctor {
   @Column()
   clinic_address: string;
 
+  @Column({
+    type: 'enum',
+    enum: ScheduleType,
+    default: ScheduleType.STREAM,
+    name: 'schedule_type',
+  })
+  schedule_type: ScheduleType;
+
   @CreateDateColumn()
   created_at: Date;
 
@@ -48,4 +58,7 @@ export class Doctor {
 
   @OneToMany(() => DoctorTimeSlot, (slot) => slot.doctor)
   time_slots: DoctorTimeSlot[];
+
+  @OneToMany(() => Appointment, (appointment) => appointment.doctor)
+  appointments: Appointment[];
 }

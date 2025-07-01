@@ -6,8 +6,10 @@ import {
   CreateDateColumn,
   UpdateDateColumn,
   PrimaryColumn,
+  OneToMany,
 } from 'typeorm';
 import { User } from '../../auth/entities/user.entity';
+import { Appointment } from 'src/appointment/entities/appointment.entity';
 
 @Entity('patients')
 export class Patient {
@@ -38,4 +40,8 @@ export class Patient {
 
   @UpdateDateColumn()
   updated_at: Date;
+
+  // Relations
+  @OneToMany(() => Appointment, (appointment) => appointment.patient)
+  appointments: Appointment[];
 }

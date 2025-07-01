@@ -59,9 +59,22 @@ export class User {
   @UpdateDateColumn()
   updated_at: Date;
 
+  // Relations
   @OneToOne(() => Doctor, (doctor) => doctor.user, { cascade: true })
   doctor: Doctor;
 
   @OneToOne(() => Patient, (patient) => patient.user, { cascade: true })
   patient: Patient;
+
+  // Functions
+  get profile() {
+    return {
+      email: this.email,
+      first_name: this.first_name,
+      last_name: this.last_name,
+      phone_number: this.phone_number,
+      provider: this.provider,
+      role: this.role,
+    };
+  }
 }
