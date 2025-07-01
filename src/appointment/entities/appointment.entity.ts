@@ -27,7 +27,7 @@ export class Appointment {
   })
   appointment_status: AppointmentStatus;
 
-  @Column()
+  @Column({ type: 'timestamp' })
   scheduled_on: Date;
 
   @Column({ type: 'varchar', nullable: true })
