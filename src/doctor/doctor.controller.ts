@@ -64,21 +64,15 @@ export class DoctorController {
     return this.doctorService.createAvailability(user.sub, dto);
   }
 
-  @Patch(':id/schedule_Type')
-async updateScheduleType(
-  @Param('id') doctorId: number,
-  @Body() dto: UpdateScheduleDto,
-  @Req() req: any,
-) {
-  if (req.user.role !== 'doctor') {
-    throw new UnauthorizedException('UnAuthorized: Not a doctor');
+  @Patch('schedule_type')
+  async updateScheduleType(
+    @Body() dto: UpdateScheduleDto,
+    @Req() req: Request,
+  ) {
+    const user = req.user as JwtPayload;
+    if (user.role !== UserRole.DOCTOR) {
+      throw new UnauthorizedException('Unauthorized: Not a doctor');
+    }
+    return this.doctorService.updateScheduleType(user.sub, dto.schedule_type);
   }
-
-  if (req.params.id != req.user.sub) {
-    throw new ForbiddenException('Forbidden Cannot Update');
-  }
-
-  return this.doctorService.updateScheduleType(doctorId, dto.schedule_Type);
-}
-
 }

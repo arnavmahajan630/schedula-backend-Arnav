@@ -6,6 +6,8 @@ import {
   OneToMany,
   JoinColumn,
   Unique,
+  CreateDateColumn,
+  UpdateDateColumn,
 } from 'typeorm';
 import { Doctor } from './doctor.entity';
 import { Session, Weekday } from '../enums/availability.enums';
@@ -18,7 +20,7 @@ export class DoctorAvailability {
   availability_id: number;
 
   @Column({ type: 'date' })
-  date: string;
+  date: Date;
 
   @Column({ type: 'time' })
   startTime: string;
@@ -31,6 +33,12 @@ export class DoctorAvailability {
 
   @Column({ type: 'enum', enum: Weekday, array: true, nullable: true })
   weekdays: Weekday[];
+
+  @CreateDateColumn()
+  created_at: Date;
+
+  @UpdateDateColumn()
+  updated_at: Date;
 
   // Relationships
   @ManyToOne(() => Doctor, (doctor) => doctor.availabilities, {

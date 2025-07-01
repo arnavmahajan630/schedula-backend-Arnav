@@ -4,10 +4,14 @@ import {
   Column,
   ManyToOne,
   JoinColumn,
+  OneToMany,
+  CreateDateColumn,
+  UpdateDateColumn,
 } from 'typeorm';
 import { DoctorAvailability } from './doctor-availability.entity';
 import { Doctor } from './doctor.entity';
 import { TimeSlotStatus } from '../enums/availability.enums';
+import { Appointment } from 'src/appointment/entities/appointment.entity';
 
 @Entity('doctor_time_slots')
 export class DoctorTimeSlot {
@@ -15,7 +19,7 @@ export class DoctorTimeSlot {
   timeslot_id: number;
 
   @Column({ type: 'date' })
-  date: string;
+  date: Date;
 
   @Column({ type: 'time' })
   startTime: string;
@@ -29,6 +33,15 @@ export class DoctorTimeSlot {
     default: TimeSlotStatus.AVAILABLE,
   })
   status: TimeSlotStatus;
+
+  @Column({ type: 'int', nullable: true }) // if null, means stream type
+  maxPatients?: number;
+
+  @CreateDateColumn()
+  created_at: Date;
+
+  @UpdateDateColumn()
+  updated_at: Date;
 
   // Relationships
   @ManyToOne(() => Doctor, (doctor) => doctor.time_slots, {
@@ -44,4 +57,7 @@ export class DoctorTimeSlot {
   )
   @JoinColumn({ name: 'availability_id' })
   availability: DoctorAvailability;
+
+  @OneToMany(() => Appointment, (appointment) => appointment.time_slot)
+  appointments: Appointment[];
 }
