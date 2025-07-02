@@ -160,22 +160,12 @@ export class AppointmentService {
         order: { scheduled_on: 'ASC' },
       });
 
-      return {
-        message: 'Upcoming appointments for patient',
-        total: appointments.length,
-        data: appointments.map((a) => ({
-          appointment_id: a.appointment_id,
-          scheduled_on: a.scheduled_on,
-          doctor: a.doctor.user.profile,
-          date: a.time_slot.date,
-          session: a.time_slot.session,
-          start_time: a.time_slot.start_time,
-          end_time: a.time_slot.end_time,
-        })),
-      };
-    }
-
-    if (role === UserRole.DOCTOR) {
+      return this.buildAppointmentResponse(
+        'Upcoming appointments for patient',
+        appointments,
+        role,
+      );
+    } else if (role === UserRole.DOCTOR) {
       appointments = await this.appointmentRepo.find({
         where: {
           doctor: { user_id: userId },
@@ -185,26 +175,46 @@ export class AppointmentService {
         order: { scheduled_on: 'ASC' },
       });
 
-      return {
-        message: 'Upcoming appointments for doctor',
-        total: appointments.length,
-        data: appointments.map((a) => ({
-          appointment_id: a.appointment_id,
-          scheduled_on: a.scheduled_on,
-          patient: a.patient.user.profile,
-          date: a.time_slot.date,
-          session: a.time_slot.session,
-          start_time: a.time_slot.start_time,
-          end_time: a.time_slot.end_time,
-        })),
-      };
+      return this.buildAppointmentResponse(
+        'Upcoming appointments for doctor',
+        appointments,
+        role,
+      );
+    } else {
+      throw new BadRequestException('Invalid user role for this operation');
     }
-
-    throw new UnauthorizedException('Invalid user role');
   } catch (error) {
     throw new InternalServerErrorException(
       'Error fetching upcoming appointments',
     );
+    }
   }
-}
+
+
+  
+
+  private buildAppointmentResponse(
+  message: string,
+  appointments: Appointment[],
+  role: UserRole,
+) {
+  const data = appointments.map((a) => ({
+    appointment_id: a.appointment_id,
+    scheduled_on: a.scheduled_on,
+    ...(role === UserRole.PATIENT
+      ? { doctor: a.doctor?.user?.profile }
+      : { patient: a.patient?.user?.profile }),
+    date: a.time_slot?.date,
+    session: a.time_slot?.session,
+    start_time: a.time_slot?.start_time,
+    end_time: a.time_slot?.end_time,
+  }));
+
+  return {
+    message,
+    total: data.length,
+    data,
+    };
+  }
+
 }
