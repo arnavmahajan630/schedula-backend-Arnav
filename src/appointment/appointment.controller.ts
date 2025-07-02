@@ -34,7 +34,7 @@ export class AppointmentController {
     );
   }
 
-  @Get('view-appointments')
+  @Get('viewplete')
   async viewAppointments(@Req() req: Request) {
     const user = req.user as JwtPayload;
 
