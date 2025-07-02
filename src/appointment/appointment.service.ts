@@ -4,6 +4,7 @@ import {
   Injectable,
   InternalServerErrorException,
   NotFoundException,
+  UnauthorizedException,
 } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Repository } from 'typeorm';
@@ -14,6 +15,7 @@ import { DoctorTimeSlot } from 'src/doctor/entities/doctor-time-slot.entity';
 import { TimeSlotStatus } from 'src/doctor/enums/availability.enums';
 import { AppointmentStatus } from './enums/appointment-status.enum';
 import { CreateAppointmentDto } from './dto/appointment.dto';
+import { UserRole } from 'src/auth/enums/user.enums';
 
 @Injectable()
 export class AppointmentService {
@@ -143,4 +145,66 @@ export class AppointmentService {
 
     return toStr(reportingTimeMins);
   }
+
+  async viewAppointments(userId: number, role: UserRole) {
+  try {
+    let appointments;
+
+    if (role === UserRole.PATIENT) {
+      appointments = await this.appointmentRepo.find({
+        where: {
+          patient: { user_id: userId },
+          appointment_status: AppointmentStatus.SCHEDULED,
+        },
+        relations: ['doctor', 'doctor.user', 'time_slot'],
+        order: { scheduled_on: 'ASC' },
+      });
+
+      return {
+        message: 'Upcoming appointments for patient',
+        total: appointments.length,
+        data: appointments.map((a) => ({
+          appointment_id: a.appointment_id,
+          scheduled_on: a.scheduled_on,
+          doctor: a.doctor.user.profile,
+          date: a.time_slot.date,
+          session: a.time_slot.session,
+          start_time: a.time_slot.start_time,
+          end_time: a.time_slot.end_time,
+        })),
+      };
+    }
+
+    if (role === UserRole.DOCTOR) {
+      appointments = await this.appointmentRepo.find({
+        where: {
+          doctor: { user_id: userId },
+          appointment_status: AppointmentStatus.SCHEDULED,
+        },
+        relations: ['patient', 'patient.user', 'time_slot'],
+        order: { scheduled_on: 'ASC' },
+      });
+
+      return {
+        message: 'Upcoming appointments for doctor',
+        total: appointments.length,
+        data: appointments.map((a) => ({
+          appointment_id: a.appointment_id,
+          scheduled_on: a.scheduled_on,
+          patient: a.patient.user.profile,
+          date: a.time_slot.date,
+          session: a.time_slot.session,
+          start_time: a.time_slot.start_time,
+          end_time: a.time_slot.end_time,
+        })),
+      };
+    }
+
+    throw new UnauthorizedException('Invalid user role');
+  } catch (error) {
+    throw new InternalServerErrorException(
+      'Error fetching upcoming appointments',
+    );
+  }
+}
 }
