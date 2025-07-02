@@ -37,7 +37,7 @@ export class Doctor {
   @Column({
     type: 'enum',
     enum: ScheduleType,
-    default: ScheduleType.STREAM,
+    default: ScheduleType.WAVE,
     name: 'schedule_type',
   })
   schedule_type: ScheduleType;

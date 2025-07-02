@@ -8,8 +8,7 @@ import {
 } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Repository } from 'typeorm';
-import { User } from 'src/auth/entities/user.entity';
-import { Doctor } from 'src/doctor/entities/doctor.entity';
+import { Patient } from 'src/patient/entities/patient.entity';
 import { Appointment } from './entities/appointment.entity';
 import { DoctorTimeSlot } from 'src/doctor/entities/doctor-time-slot.entity';
 import { TimeSlotStatus } from 'src/doctor/enums/availability.enums';
@@ -24,40 +23,41 @@ export class AppointmentService {
     private appointmentRepo: Repository<Appointment>,
     @InjectRepository(DoctorTimeSlot)
     private timeSlotRepo: Repository<DoctorTimeSlot>,
-    @InjectRepository(Doctor)
-    private doctorRepo: Repository<Doctor>,
-    @InjectRepository(User)
-    private userRepo: Repository<User>,
+    @InjectRepository(Patient)
+    private patientRepo: Repository<Patient>,
   ) {}
 
   async createAppointment(patientId: number, dto: CreateAppointmentDto) {
     try {
       const { doctor_id, timeslot_id } = dto;
 
-      const doctor = await this.doctorRepo.findOneBy({ user_id: doctor_id });
-      if (!doctor) {
-        throw new NotFoundException('Doctor not found');
+      const timeSlot = await this.timeSlotRepo.findOne({
+        where: { timeslot_id },
+        relations: ['doctor', 'doctor.user'],
+      });
+      if (!timeSlot) {
+        throw new NotFoundException('Time slot not found');
       }
 
-      if (doctor.user_id !== doctor_id) {
+      if (timeSlot.doctor.user_id !== doctor_id) {
         throw new BadRequestException(
           'Time slot does not belong to this doctor',
         );
       }
 
-      const patient = await this.userRepo.findOneBy({ user_id: patientId });
+      const patient = await this.patientRepo.findOne({
+        where: { user_id: patientId },
+        relations: ['user'],
+      });
       if (!patient) {
         throw new NotFoundException('Patient not found');
-      }
-
-      const timeSlot = await this.timeSlotRepo.findOneBy({ timeslot_id });
-      if (!timeSlot) {
-        throw new NotFoundException('Time slot not found');
       }
 
       if (timeSlot.status !== TimeSlotStatus.AVAILABLE) {
         throw new ConflictException('Time slot is no longer available');
       }
+
+      const { doctor, ...timeSlotWithoutDoctor } = timeSlot;
 
       const existingAppointmentInSession = await this.appointmentRepo.findOne({
         where: {
@@ -106,7 +106,19 @@ export class AppointmentService {
 
       return {
         message: 'Appointment booked successfully',
-        data: { ...appointment, reporting_time },
+        data: {
+          reporting_time,
+          ...appointment,
+          doctor: {
+            ...doctor,
+            user: { profile: doctor.user.profile },
+          },
+          patient: {
+            ...patient,
+            user: { profile: patient.user.profile },
+          },
+          time_slot: timeSlotWithoutDoctor,
+        },
       };
     } catch (error) {
       if (
