@@ -165,13 +165,12 @@ export class AppointmentService {
           appointments,
           role,
         );
-      } else {
-        throw new BadRequestException('Invalid user role for this operation');
       }
     } catch (error) {
       if (error instanceof BadRequestException) {
         throw error;
       }
+      console.error('Error fetching appointments:', error);
       throw new InternalServerErrorException(
         'Error fetching upcoming appointments',
       );
@@ -192,8 +191,8 @@ export class AppointmentService {
       return `${String(h).padStart(2, '0')}:${String(min).padStart(2, '0')}`;
     };
 
-    const startMins = toMin(timeSlot.consulting_start_time);
-    const endMins = toMin(timeSlot.consulting_end_time);
+    const startMins = toMin(timeSlot.start_time);
+    const endMins = toMin(timeSlot.end_time);
     const totalDuration = endMins - startMins;
 
     const timePerPatient = totalDuration / timeSlot.max_patients;
@@ -208,17 +207,28 @@ export class AppointmentService {
     appointments: Appointment[],
     role: UserRole,
   ) {
-    const data = appointments.map((a) => ({
-      appointment_id: a.appointment_id,
-      scheduled_on: a.scheduled_on,
-      ...(role === UserRole.PATIENT
-        ? { doctor: a.doctor?.user?.profile }
-        : { patient: a.patient?.user?.profile }),
-      date: a.time_slot?.date,
-      session: a.time_slot?.session,
-      consulting_start_time: a.time_slot?.consulting_start_time,
-      consulting_end_time: a.time_slot?.consulting_end_time,
-    }));
+    const data = appointments.map((appointment) => {
+      return {
+        ...appointment,
+        ...(role === UserRole.PATIENT
+          ? {
+              doctor: {
+                ...appointment.doctor,
+                user: {
+                  profile: appointment.doctor.user.profile,
+                },
+              },
+            }
+          : {
+              patient: {
+                ...appointment.patient,
+                user: {
+                  profile: appointment.patient.user.profile,
+                },
+              },
+            }),
+      };
+    });
 
     return {
       message,

@@ -28,10 +28,10 @@ export class DoctorTimeSlot {
   session: Session;
 
   @Column({ type: 'time' })
-  consulting_start_time: string;
+  start_time: string;
 
   @Column({ type: 'time' })
-  consulting_end_time: string;
+  end_time: string;
 
   @Column({
     type: 'enum',
