@@ -159,10 +159,6 @@ export class AppointmentService {
   }
 
   async viewAppointments(userId: number, role: UserRole) {
-
-  if (![UserRole.PATIENT, UserRole.DOCTOR].includes(role)) {
-      throw new UnauthorizedException('Access denied: Invalid role');
-    }
   try {
     let appointments;
 
@@ -174,7 +170,7 @@ export class AppointmentService {
         },
         relations: ['doctor', 'doctor.user', 'time_slot'],
         order: { scheduled_on: 'ASC' },
-      });
+      }); 
 
       return this.buildAppointmentResponse(
         'Upcoming appointments for patient',
