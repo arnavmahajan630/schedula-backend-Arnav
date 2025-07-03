@@ -1,6 +1,7 @@
 import {
   Body,
   Controller,
+  Get,
   Post,
   Req,
   UnauthorizedException,
@@ -31,5 +32,16 @@ export class AppointmentController {
       patientId,
       createAppointmentDto,
     );
+  }
+
+  @Get('view')
+  async viewAppointments(@Req() req: Request) {
+    const user = req.user as JwtPayload;
+
+    if (![UserRole.PATIENT, UserRole.DOCTOR].includes(user.role)) {
+      throw new UnauthorizedException('Access denied: Invalid role');
+    }
+
+    return this.appointmentService.viewAppointments(user.sub, user.role);
   }
 }
