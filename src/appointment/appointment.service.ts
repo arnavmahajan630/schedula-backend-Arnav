@@ -1,158 +1,232 @@
 import {
-  Injectable,
-  NotFoundException,
+  BadRequestException,
   ConflictException,
+  Injectable,
   InternalServerErrorException,
+  NotFoundException,
+  UnauthorizedException,
 } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Repository } from 'typeorm';
-import { CreateAppointmentDto } from './dto/appointment.dto';
+import { Patient } from 'src/patient/entities/patient.entity';
 import { Appointment } from './entities/appointment.entity';
 import { DoctorTimeSlot } from 'src/doctor/entities/doctor-time-slot.entity';
-import { Patient } from 'src/patient/entities/patient.entity';
-import { Doctor } from 'src/doctor/entities/doctor.entity';
 import { TimeSlotStatus } from 'src/doctor/enums/availability.enums';
 import { AppointmentStatus } from './enums/appointment-status.enum';
-import { ScheduleType } from 'src/doctor/enums/schedule-type.enums';
+import { CreateAppointmentDto } from './dto/appointment.dto';
+import { UserRole } from 'src/auth/enums/user.enums';
 
 @Injectable()
 export class AppointmentService {
   constructor(
-    @InjectRepository(Patient)
-    private patientRepo: Repository<Patient>,
-    @InjectRepository(Doctor)
-    private DoctorRepo: Repository<Doctor>,
     @InjectRepository(Appointment)
     private appointmentRepo: Repository<Appointment>,
     @InjectRepository(DoctorTimeSlot)
     private timeSlotRepo: Repository<DoctorTimeSlot>,
+    @InjectRepository(Patient)
+    private patientRepo: Repository<Patient>,
   ) {}
 
   async createAppointment(patientId: number, dto: CreateAppointmentDto) {
-    // Find the patient
     try {
-      const doctor = await this.DoctorRepo.findOne({
-        where: { user_id: dto.doctor_id },
-      });
+      const { doctor_id, timeslot_id } = dto;
 
-      if (!doctor) {
-        throw new NotFoundException('Doctor not found');
+      const timeSlot = await this.timeSlotRepo.findOne({
+        where: { timeslot_id },
+        relations: ['doctor', 'doctor.user'],
+      });
+      if (!timeSlot) {
+        throw new NotFoundException('Time slot not found');
+      }
+
+      if (timeSlot.doctor.user_id !== doctor_id) {
+        throw new BadRequestException(
+          'Time slot does not belong to this doctor',
+        );
       }
 
       const patient = await this.patientRepo.findOne({
         where: { user_id: patientId },
+        relations: ['user'],
       });
       if (!patient) {
         throw new NotFoundException('Patient not found');
       }
 
-      //Validation: A patient can book only one slot per session (morning/evening) per day with the same doctor
-      const isAlreadyBooked = await this.appointmentRepo.findOne({
+      if (timeSlot.status !== TimeSlotStatus.AVAILABLE) {
+        throw new ConflictException('Time slot is no longer available');
+      }
+
+      const { doctor, ...timeSlotWithoutDoctor } = timeSlot;
+
+      const existingAppointmentInSession = await this.appointmentRepo.findOne({
         where: {
-          doctor: { user_id: dto.doctor_id },
           patient: { user_id: patientId },
           time_slot: {
-            date: dto.date,
-            session: dto.session,
+            doctor: { user_id: doctor.user_id },
+            date: timeSlot.date,
+            session: timeSlot.session,
           },
-          appointment_status:
-            AppointmentStatus.SCHEDULED || AppointmentStatus.COMPLETED,
         },
       });
 
-      if (isAlreadyBooked) {
+      if (existingAppointmentInSession) {
         throw new ConflictException(
-          `Patient already has an appointment with this doctor on ${dto.date.toISOString().split('T')[0]} during the ${dto.session} session`,
+          'You already have an appointment with this doctor in this session.',
         );
       }
 
-      const scheduleType = doctor.schedule_type;
-
-      const timeSlot = await this.timeSlotRepo.findOne({
-        where: {
-          doctor: { user_id: dto.doctor_id },
-          date: dto.date,
-          session: dto.session,
-          start_time: dto.start_time,
-          end_time: dto.end_time,
-        },
+      const existingAppointmentsCount = await this.appointmentRepo.count({
+        where: { time_slot: { timeslot_id: timeSlot.timeslot_id } },
       });
-      if (!timeSlot) {
-        throw new NotFoundException('Time slot not found');
-      }
-      if (timeSlot.status !== TimeSlotStatus.AVAILABLE) {
-        throw new ConflictException('Time slot is not available');
+
+      if (existingAppointmentsCount >= timeSlot.max_patients) {
+        throw new ConflictException('This time slot is already full.');
       }
 
-      // For STREAM schedule type.
-      if (scheduleType === ScheduleType.STREAM) {
-        // Create the appointment if the slot is available
-        const appointment = this.appointmentRepo.create({
-          patient: { user_id: patientId },
-          doctor: { user_id: dto.doctor_id },
-          time_slot: timeSlot,
-          appointment_status: AppointmentStatus.SCHEDULED,
-          scheduled_on: new Date(),
-        });
-        await this.appointmentRepo.save(appointment);
+      const reporting_time = this.calculateReportingTime(
+        timeSlot,
+        existingAppointmentsCount,
+      );
 
-        // Update the time slot status to BOOKED
+      const appointment = this.appointmentRepo.create({
+        doctor,
+        patient,
+        time_slot: timeSlot,
+        appointment_status: AppointmentStatus.SCHEDULED,
+        scheduled_on: new Date(),
+      });
+
+      await this.appointmentRepo.save(appointment);
+
+      if (existingAppointmentsCount + 1 >= timeSlot.max_patients) {
         timeSlot.status = TimeSlotStatus.BOOKED;
         await this.timeSlotRepo.save(timeSlot);
-        return {
-          message: 'Appointment created successfully',
-          data: { appointment },
-        };
       }
 
-      // For WAVE schedule type.
-      if (scheduleType === ScheduleType.WAVE) {
-        const existingAppointments = await this.appointmentRepo.find({
-          where: {
-            doctor: { user_id: dto.doctor_id },
-            time_slot: { timeslot_id: timeSlot.timeslot_id },
-            appointment_status: AppointmentStatus.SCHEDULED,
+      return {
+        message: 'Appointment booked successfully',
+        data: {
+          reporting_time,
+          ...appointment,
+          doctor: {
+            ...doctor,
+            user: { profile: doctor.user.profile },
           },
-        });
-
-        const maxPatients = timeSlot.max_patients || 3;
-        const currentBookings = existingAppointments.length;
-
-        if (currentBookings >= maxPatients) {
-          throw new ConflictException(
-            `Time slot has reached maximum capacity of ${maxPatients} patients`,
-          );
-        }
-
-        const appointment = this.appointmentRepo.create({
-          patient: { user_id: patientId },
-          doctor: { user_id: dto.doctor_id },
-          time_slot: timeSlot,
-          appointment_status: AppointmentStatus.SCHEDULED,
-          scheduled_on: new Date(),
-        });
-
-        await this.appointmentRepo.save(appointment);
-
-        // Update slot status if it reaches capacity
-        if (currentBookings + 1 >= maxPatients) {
-          timeSlot.status = TimeSlotStatus.BOOKED;
-          await this.timeSlotRepo.save(timeSlot);
-        }
-        return {
-          message: 'Appointment created successfully',
-          data: { appointment },
-        };
-      }
+          patient: {
+            ...patient,
+            user: { profile: patient.user.profile },
+          },
+          time_slot: timeSlotWithoutDoctor,
+        },
+      };
     } catch (error) {
       if (
         error instanceof NotFoundException ||
-        error instanceof ConflictException
+        error instanceof ConflictException ||
+        error instanceof BadRequestException
       ) {
-        throw error; // Re-throw known exceptions
+        throw error;
       }
       console.error('Error creating appointment:', error);
-      throw new InternalServerErrorException();
+      throw new InternalServerErrorException('Error creating appointment');
     }
   }
+
+  private calculateReportingTime(
+    timeSlot: DoctorTimeSlot,
+    patientIndex: number,
+  ): string {
+    const toMin = (t: string) => {
+      const [h, m] = t.split(':').map(Number);
+      return h * 60 + m;
+    };
+    const toStr = (m: number) => {
+      const h = Math.floor(m / 60);
+      const min = m % 60;
+      return `${String(h).padStart(2, '0')}:${String(min).padStart(2, '0')}`;
+    };
+
+    const startMins = toMin(timeSlot.start_time);
+    const endMins = toMin(timeSlot.end_time);
+    const totalDuration = endMins - startMins;
+
+    const timePerPatient = totalDuration / timeSlot.max_patients;
+
+    const reportingTimeMins = startMins + timePerPatient * patientIndex;
+
+    return toStr(reportingTimeMins);
+  }
+
+  async viewAppointments(userId: number, role: UserRole) {
+  try {
+    let appointments;
+
+    if (role === UserRole.PATIENT) {
+      appointments = await this.appointmentRepo.find({
+        where: {
+          patient: { user_id: userId },
+          appointment_status: AppointmentStatus.SCHEDULED,
+        },
+        relations: ['doctor', 'doctor.user', 'time_slot'],
+        order: { scheduled_on: 'ASC' },
+      });
+
+      return this.buildAppointmentResponse(
+        'Upcoming appointments for patient',
+        appointments,
+        role,
+      );
+    } else if (role === UserRole.DOCTOR) {
+      appointments = await this.appointmentRepo.find({
+        where: {
+          doctor: { user_id: userId },
+          appointment_status: AppointmentStatus.SCHEDULED,
+        },
+        relations: ['patient', 'patient.user', 'time_slot'],
+        order: { scheduled_on: 'ASC' },
+      });
+
+      return this.buildAppointmentResponse(
+        'Upcoming appointments for doctor',
+        appointments,
+        role,
+      );
+    } else {
+      throw new BadRequestException('Invalid user role for this operation');
+    }
+  } catch (error) {
+    throw new InternalServerErrorException(
+      'Error fetching upcoming appointments',
+    );
+    }
+  }
+
+
+  
+
+  private buildAppointmentResponse(
+  message: string,
+  appointments: Appointment[],
+  role: UserRole,
+) {
+  const data = appointments.map((a) => ({
+    appointment_id: a.appointment_id,
+    scheduled_on: a.scheduled_on,
+    ...(role === UserRole.PATIENT
+      ? { doctor: a.doctor?.user?.profile }
+      : { patient: a.patient?.user?.profile }),
+    date: a.time_slot?.date,
+    session: a.time_slot?.session,
+    start_time: a.time_slot?.start_time,
+    end_time: a.time_slot?.end_time,
+  }));
+
+  return {
+    message,
+    total: data.length,
+    data,
+    };
+  }
+
 }

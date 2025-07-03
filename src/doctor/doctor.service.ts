@@ -16,7 +16,8 @@ import { ScheduleType } from './enums/schedule-type.enums';
 @Injectable()
 export class DoctorService {
   constructor(
-    @InjectRepository(Doctor) private doctorRepo: Repository<Doctor>,
+    @InjectRepository(Doctor)
+    private doctorRepo: Repository<Doctor>,
     @InjectRepository(DoctorAvailability)
     private availabilityRepo: Repository<DoctorAvailability>,
     @InjectRepository(DoctorTimeSlot)
@@ -102,6 +103,15 @@ export class DoctorService {
       });
       if (!doctor) throw new NotFoundException('Doctor not found');
 
+      if (
+        doctor.schedule_type === ScheduleType.WAVE &&
+        (!dto.patients_per_slot || dto.patients_per_slot < 1)
+      ) {
+        throw new BadRequestException(
+          'patients_per_slot must be provided for WAVE scheduling.',
+        );
+      }
+
       if (new Date(dto.date) < new Date(new Date().toDateString())) {
         throw new BadRequestException('Date is in the past');
       }
@@ -120,23 +130,38 @@ export class DoctorService {
       const availability = this.availabilityRepo.create({ ...dto, doctor });
       await this.availabilityRepo.save(availability);
 
-      const slots = this.generateSlots(dto.start_time, dto.end_time, 30).map(
-        ({ start, end }) =>
-          this.timeSlotRepo.create({
-            date: dto.date,
-            session: dto.session,
-            start_time: start,
-            end_time: end,
-            status: TimeSlotStatus.AVAILABLE,
-            doctor,
-            availability,
-          }),
+      const slotTimes = this.generateSlots(
+        dto.start_time,
+        dto.end_time,
+        dto.slot_duration,
       );
+      const slots = slotTimes.map(({ start, end }) => {
+        const timeSlot = this.timeSlotRepo.create({
+          date: dto.date,
+          session: dto.session,
+          start_time: start,
+          end_time: end,
+          status: TimeSlotStatus.AVAILABLE,
+          doctor,
+          availability,
+        });
+
+        if (doctor.schedule_type === ScheduleType.WAVE) {
+          timeSlot.max_patients = dto.patients_per_slot || 3; // Default for WAVE schedule
+        } else {
+          timeSlot.max_patients = 1; // Default for STREAM schedule
+        }
+        return timeSlot;
+      });
+
       await this.timeSlotRepo.save(slots);
 
       return {
         message: 'Availability and slots created',
-        data: { ...availability, doctor: doctor.user.profile },
+        data: {
+          ...availability,
+          doctor: { ...doctor, user: doctor.user.profile },
+        },
       };
     } catch (error) {
       if (
@@ -156,7 +181,7 @@ export class DoctorService {
           doctor: { user_id: doctorId },
           status: TimeSlotStatus.AVAILABLE,
         },
-        order: { date: 'ASC', start_time: 'ASC' },
+        order: { date: 'ASC', session: 'ASC', start_time: 'ASC' },
         skip: (page - 1) * limit,
         take: limit,
         relations: ['availability'],
@@ -171,19 +196,17 @@ export class DoctorService {
         };
       }
 
-      const { date, session, weekdays } = slots[0].availability;
-
       return {
         total: count,
         page,
         limit,
-        date,
-        session,
-        weekdays,
         slots: slots.map((s) => ({
+          timeslot_id: s.timeslot_id,
           date: s.date,
-          startTime: s.start_time.slice(0, 5),
-          endTime: s.end_time.slice(0, 5),
+          session: s.session,
+          start_time: s.start_time.slice(0, 5),
+          end_time: s.end_time.slice(0, 5),
+          max_patients: s.max_patients,
         })),
       };
     } catch (error) {
@@ -222,7 +245,7 @@ export class DoctorService {
   private generateSlots(
     startTime: string,
     endTime: string,
-    interval: number = 30, // default 30-minute slots
+    interval: number,
   ): { start: string; end: string }[] {
     const toMin = (t: string) => {
       const [h, m] = t.split(':').map(Number);

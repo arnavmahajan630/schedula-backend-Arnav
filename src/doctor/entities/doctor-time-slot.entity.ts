@@ -40,8 +40,8 @@ export class DoctorTimeSlot {
   })
   status: TimeSlotStatus;
 
-  @Column({ type: 'int', nullable: true }) // if null, means stream type
-  max_patients?: number;
+  @Column({ type: 'int' })
+  max_patients: number;
 
   @CreateDateColumn()
   created_at: Date;
