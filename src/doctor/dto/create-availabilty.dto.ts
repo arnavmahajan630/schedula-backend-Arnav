@@ -17,10 +17,10 @@ export class CreateDoctorAvailabilityDto {
   date: Date;
 
   @IsString()
-  start_time: string;
+  consulting_start_time: string;
 
   @IsString()
-  end_time: string;
+  consulting_end_time: string;
 
   @IsEnum(Session)
   session: Session;

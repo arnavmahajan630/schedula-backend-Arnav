@@ -23,10 +23,10 @@ export class DoctorAvailability {
   date: Date;
 
   @Column({ type: 'time' })
-  start_time: string;
+  consulting_start_time: string;
 
   @Column({ type: 'time' })
-  end_time: string;
+  consulting_end_time: string;
 
   @Column({ type: 'enum', enum: Session })
   session: Session;

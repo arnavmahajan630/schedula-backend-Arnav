@@ -121,8 +121,8 @@ export class DoctorService {
           doctor: { user_id: doctorId },
           date: dto.date,
           session: dto.session,
-          start_time: dto.start_time,
-          end_time: dto.end_time,
+          consulting_start_time: dto.consulting_start_time,
+          consulting_end_time: dto.consulting_end_time,
         },
       });
       if (existing) throw new BadRequestException('Duplicate availability');
@@ -131,16 +131,16 @@ export class DoctorService {
       await this.availabilityRepo.save(availability);
 
       const slotTimes = this.generateSlots(
-        dto.start_time,
-        dto.end_time,
+        dto.consulting_end_time,
+        dto.consulting_end_time,
         dto.slot_duration,
       );
       const slots = slotTimes.map(({ start, end }) => {
         const timeSlot = this.timeSlotRepo.create({
           date: dto.date,
           session: dto.session,
-          start_time: start,
-          end_time: end,
+          consulting_start_time: start,
+          consulting_end_time: end,
           status: TimeSlotStatus.AVAILABLE,
           doctor,
           availability,
@@ -175,11 +175,12 @@ export class DoctorService {
   }
 
   async getAvailableTimeSlots(doctorId: number, page: number, limit: number) {
-
-  const isDoctor = await this.validateDoctorId(doctorId);
-  if (!isDoctor) {
-    throw new BadRequestException('Provided ID does not belong to a doctor');
-  }
+    const doctor = await this.doctorRepo.findOne({
+      where: { user_id: doctorId },
+    });
+    if (!doctor) {
+      throw new BadRequestException('Invalid doctor ID');
+    }
 
     try {
       const [slots, count] = await this.timeSlotRepo.findAndCount({
@@ -187,7 +188,7 @@ export class DoctorService {
           doctor: { user_id: doctorId },
           status: TimeSlotStatus.AVAILABLE,
         },
-        order: { date: 'ASC', session: 'ASC', start_time: 'ASC' },
+        order: { date: 'ASC', session: 'ASC', consulting_start_time: 'ASC' },
         skip: (page - 1) * limit,
         take: limit,
         relations: ['availability'],
@@ -210,8 +211,8 @@ export class DoctorService {
           timeslot_id: s.timeslot_id,
           date: s.date,
           session: s.session,
-          start_time: s.start_time.slice(0, 5),
-          end_time: s.end_time.slice(0, 5),
+          consulting_start_time: s.consulting_start_time.slice(0, 5),
+          consulting_end_time: s.consulting_end_time.slice(0, 5),
           max_patients: s.max_patients,
         })),
       };
@@ -284,12 +285,4 @@ export class DoctorService {
 
     return slots;
   }
-
-  private async validateDoctorId(id: number): Promise<boolean> {
-  const doctor = await this.doctorRepo.findOne({
-    where: { user_id: id },
-  });
-  return !!doctor;
-  }
-
 }
