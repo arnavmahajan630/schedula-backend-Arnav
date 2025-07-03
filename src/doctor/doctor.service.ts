@@ -175,6 +175,12 @@ export class DoctorService {
   }
 
   async getAvailableTimeSlots(doctorId: number, page: number, limit: number) {
+
+  const isDoctor = await this.validateDoctorId(doctorId);
+  if (!isDoctor) {
+    throw new BadRequestException('Provided ID does not belong to a doctor');
+  }
+
     try {
       const [slots, count] = await this.timeSlotRepo.findAndCount({
         where: {
@@ -278,4 +284,12 @@ export class DoctorService {
 
     return slots;
   }
+
+  private async validateDoctorId(id: number): Promise<boolean> {
+  const doctor = await this.doctorRepo.findOne({
+    where: { user_id: id },
+  });
+  return !!doctor;
+  }
+
 }
