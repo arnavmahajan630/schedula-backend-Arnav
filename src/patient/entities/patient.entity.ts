@@ -16,10 +16,6 @@ export class Patient {
   @PrimaryColumn()
   user_id: number;
 
-  @OneToOne(() => User, (user) => user.patient, { onDelete: 'CASCADE' })
-  @JoinColumn({ name: 'user_id' })
-  user: User;
-
   @Column()
   age: number;
 
@@ -42,6 +38,11 @@ export class Patient {
   updated_at: Date;
 
   // Relations
+
+  @OneToOne(() => User, (user) => user.patient, { onDelete: 'CASCADE' })
+  @JoinColumn({ name: 'user_id' })
+  user: User;
+
   @OneToMany(() => Appointment, (appointment) => appointment.patient)
   appointments: Appointment[];
 }
