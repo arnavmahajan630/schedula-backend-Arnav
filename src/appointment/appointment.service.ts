@@ -4,7 +4,6 @@ import {
   Injectable,
   InternalServerErrorException,
   NotFoundException,
-  UnauthorizedException,
 } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Repository } from 'typeorm';
@@ -147,8 +146,8 @@ export class AppointmentService {
       return `${String(h).padStart(2, '0')}:${String(min).padStart(2, '0')}`;
     };
 
-    const startMins = toMin(timeSlot.start_time);
-    const endMins = toMin(timeSlot.end_time);
+    const startMins = toMin(timeSlot.consulting_end_time);
+    const endMins = toMin(timeSlot.consulting_end_time);
     const totalDuration = endMins - startMins;
 
     const timePerPatient = totalDuration / timeSlot.max_patients;
@@ -159,78 +158,72 @@ export class AppointmentService {
   }
 
   async viewAppointments(userId: number, role: UserRole) {
+    try {
+      if (role === UserRole.PATIENT) {
+        const appointments = await this.appointmentRepo.find({
+          where: {
+            patient: { user_id: userId },
+            appointment_status: AppointmentStatus.SCHEDULED,
+          },
+          relations: ['doctor', 'doctor.user', 'time_slot'],
+          order: { scheduled_on: 'ASC' },
+        });
 
-  if (![UserRole.PATIENT, UserRole.DOCTOR].includes(role)) {
-      throw new UnauthorizedException('Access denied: Invalid role');
-    }
-  try {
-    let appointments;
+        return this.buildAppointmentResponse(
+          'Upcoming appointments for patient',
+          appointments,
+          role,
+        );
+      }
+      if (role === UserRole.DOCTOR) {
+        const appointments = await this.appointmentRepo.find({
+          where: {
+            doctor: { user_id: userId },
+            appointment_status: AppointmentStatus.SCHEDULED,
+          },
+          relations: ['patient', 'patient.user', 'time_slot'],
+          order: { scheduled_on: 'ASC' },
+        });
 
-    if (role === UserRole.PATIENT) {
-      appointments = await this.appointmentRepo.find({
-        where: {
-          patient: { user_id: userId },
-          appointment_status: AppointmentStatus.SCHEDULED,
-        },
-        relations: ['doctor', 'doctor.user', 'time_slot'],
-        order: { scheduled_on: 'ASC' },
-      });
-
-      return this.buildAppointmentResponse(
-        'Upcoming appointments for patient',
-        appointments,
-        role,
+        return this.buildAppointmentResponse(
+          'Upcoming appointments for doctor',
+          appointments,
+          role,
+        );
+      } else {
+        throw new BadRequestException('Invalid user role for this operation');
+      }
+    } catch (error) {
+      if (error instanceof BadRequestException) {
+        throw error;
+      }
+      throw new InternalServerErrorException(
+        'Error fetching upcoming appointments',
       );
-    } else if (role === UserRole.DOCTOR) {
-      appointments = await this.appointmentRepo.find({
-        where: {
-          doctor: { user_id: userId },
-          appointment_status: AppointmentStatus.SCHEDULED,
-        },
-        relations: ['patient', 'patient.user', 'time_slot'],
-        order: { scheduled_on: 'ASC' },
-      });
-
-      return this.buildAppointmentResponse(
-        'Upcoming appointments for doctor',
-        appointments,
-        role,
-      );
-    } else {
-      throw new BadRequestException('Invalid user role for this operation');
-    }
-  } catch (error) {
-    throw new InternalServerErrorException(
-      'Error fetching upcoming appointments',
-    );
     }
   }
-
-
-  
 
   private buildAppointmentResponse(
-  message: string,
-  appointments: Appointment[],
-  role: UserRole,
-) {
-  const data = appointments.map((a) => ({
-    appointment_id: a.appointment_id,
-    scheduled_on: a.scheduled_on,
-    ...(role === UserRole.PATIENT
-      ? { doctor: a.doctor?.user?.profile }
-      : { patient: a.patient?.user?.profile }),
-    date: a.time_slot?.date,
-    session: a.time_slot?.session,
-    start_time: a.time_slot?.start_time,
-    end_time: a.time_slot?.end_time,
-  }));
+    message: string,
+    appointments: Appointment[],
+    role: UserRole,
+  ) {
+    const data = appointments.map((a) => ({
+      appointment_id: a.appointment_id,
+      scheduled_on: a.scheduled_on,
+      ...(role === UserRole.PATIENT
+        ? { doctor: a.doctor?.user?.profile }
+        : { patient: a.patient?.user?.profile }),
+      date: a.time_slot?.date,
+      session: a.time_slot?.session,
+      consulting_start_time: a.time_slot?.consulting_start_time,
+      consulting_end_time: a.time_slot?.consulting_end_time,
+    }));
 
-  return {
-    message,
-    total: data.length,
-    data,
+    return {
+      message,
+      total: data.length,
+      data,
     };
   }
-
 }
