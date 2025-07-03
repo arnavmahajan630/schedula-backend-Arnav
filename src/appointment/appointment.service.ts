@@ -132,31 +132,6 @@ export class AppointmentService {
     }
   }
 
-  private calculateReportingTime(
-    timeSlot: DoctorTimeSlot,
-    patientIndex: number,
-  ): string {
-    const toMin = (t: string) => {
-      const [h, m] = t.split(':').map(Number);
-      return h * 60 + m;
-    };
-    const toStr = (m: number) => {
-      const h = Math.floor(m / 60);
-      const min = m % 60;
-      return `${String(h).padStart(2, '0')}:${String(min).padStart(2, '0')}`;
-    };
-
-    const startMins = toMin(timeSlot.consulting_end_time);
-    const endMins = toMin(timeSlot.consulting_end_time);
-    const totalDuration = endMins - startMins;
-
-    const timePerPatient = totalDuration / timeSlot.max_patients;
-
-    const reportingTimeMins = startMins + timePerPatient * patientIndex;
-
-    return toStr(reportingTimeMins);
-  }
-
   async viewAppointments(userId: number, role: UserRole) {
     try {
       if (role === UserRole.PATIENT) {
@@ -201,6 +176,31 @@ export class AppointmentService {
         'Error fetching upcoming appointments',
       );
     }
+  }
+
+  private calculateReportingTime(
+    timeSlot: DoctorTimeSlot,
+    patientIndex: number,
+  ): string {
+    const toMin = (t: string) => {
+      const [h, m] = t.split(':').map(Number);
+      return h * 60 + m;
+    };
+    const toStr = (m: number) => {
+      const h = Math.floor(m / 60);
+      const min = m % 60;
+      return `${String(h).padStart(2, '0')}:${String(min).padStart(2, '0')}`;
+    };
+
+    const startMins = toMin(timeSlot.consulting_start_time);
+    const endMins = toMin(timeSlot.consulting_end_time);
+    const totalDuration = endMins - startMins;
+
+    const timePerPatient = totalDuration / timeSlot.max_patients;
+
+    const reportingTimeMins = startMins + timePerPatient * patientIndex;
+
+    return toStr(reportingTimeMins);
   }
 
   private buildAppointmentResponse(

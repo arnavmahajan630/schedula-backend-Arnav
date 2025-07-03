@@ -131,7 +131,7 @@ export class DoctorService {
       await this.availabilityRepo.save(availability);
 
       const slotTimes = this.generateSlots(
-        dto.consulting_end_time,
+        dto.consulting_start_time,
         dto.consulting_end_time,
         dto.slot_duration,
       );
