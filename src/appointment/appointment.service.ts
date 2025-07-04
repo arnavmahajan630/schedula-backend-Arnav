@@ -209,13 +209,17 @@ export class AppointmentService {
   ) {
     const data = appointments.map((appointment) => {
       return {
-        ...appointment,
+        appointment_id: appointment.appointment_id,
+        appointment_status: appointment.appointment_status,
+        scheduled_on: appointment.scheduled_on,
+        reason: appointment.reason,
+        notes: appointment.notes,
         ...(role === UserRole.PATIENT
           ? {
               doctor: {
                 ...appointment.doctor,
                 user: {
-                  profile: appointment.doctor.user.profile,
+                  profile: appointment.doctor?.user.profile,
                 },
               },
             }
@@ -223,7 +227,7 @@ export class AppointmentService {
               patient: {
                 ...appointment.patient,
                 user: {
-                  profile: appointment.patient.user.profile,
+                  profile: appointment.patient?.user.profile,
                 },
               },
             }),
