@@ -4,7 +4,6 @@ import {
   Injectable,
   InternalServerErrorException,
   NotFoundException,
-  UnauthorizedException,
 } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Repository } from 'typeorm';
@@ -133,6 +132,51 @@ export class AppointmentService {
     }
   }
 
+  async viewAppointments(userId: number, role: UserRole) {
+    try {
+      if (role === UserRole.PATIENT) {
+        const appointments = await this.appointmentRepo.find({
+          where: {
+            patient: { user_id: userId },
+            appointment_status: AppointmentStatus.SCHEDULED,
+          },
+          relations: ['doctor', 'doctor.user', 'time_slot'],
+          order: { scheduled_on: 'ASC' },
+        });
+
+        return this.buildAppointmentResponse(
+          'Upcoming appointments for patient',
+          appointments,
+          role,
+        );
+      }
+      if (role === UserRole.DOCTOR) {
+        const appointments = await this.appointmentRepo.find({
+          where: {
+            doctor: { user_id: userId },
+            appointment_status: AppointmentStatus.SCHEDULED,
+          },
+          relations: ['patient', 'patient.user', 'time_slot'],
+          order: { scheduled_on: 'ASC' },
+        });
+
+        return this.buildAppointmentResponse(
+          'Upcoming appointments for doctor',
+          appointments,
+          role,
+        );
+      }
+    } catch (error) {
+      if (error instanceof BadRequestException) {
+        throw error;
+      }
+      console.error('Error fetching appointments:', error);
+      throw new InternalServerErrorException(
+        'Error fetching upcoming appointments',
+      );
+    }
+  }
+
   private calculateReportingTime(
     timeSlot: DoctorTimeSlot,
     patientIndex: number,
@@ -158,75 +202,42 @@ export class AppointmentService {
     return toStr(reportingTimeMins);
   }
 
-  async viewAppointments(userId: number, role: UserRole) {
-  try {
-    let appointments;
-
-    if (role === UserRole.PATIENT) {
-      appointments = await this.appointmentRepo.find({
-        where: {
-          patient: { user_id: userId },
-          appointment_status: AppointmentStatus.SCHEDULED,
-        },
-        relations: ['doctor', 'doctor.user', 'time_slot'],
-        order: { scheduled_on: 'ASC' },
-      });
-
-      return this.buildAppointmentResponse(
-        'Upcoming appointments for patient',
-        appointments,
-        role,
-      );
-    } else if (role === UserRole.DOCTOR) {
-      appointments = await this.appointmentRepo.find({
-        where: {
-          doctor: { user_id: userId },
-          appointment_status: AppointmentStatus.SCHEDULED,
-        },
-        relations: ['patient', 'patient.user', 'time_slot'],
-        order: { scheduled_on: 'ASC' },
-      });
-
-      return this.buildAppointmentResponse(
-        'Upcoming appointments for doctor',
-        appointments,
-        role,
-      );
-    } else {
-      throw new BadRequestException('Invalid user role for this operation');
-    }
-  } catch (error) {
-    throw new InternalServerErrorException(
-      'Error fetching upcoming appointments',
-    );
-    }
-  }
-
-
-  
-
   private buildAppointmentResponse(
-  message: string,
-  appointments: Appointment[],
-  role: UserRole,
-) {
-  const data = appointments.map((a) => ({
-    appointment_id: a.appointment_id,
-    scheduled_on: a.scheduled_on,
-    ...(role === UserRole.PATIENT
-      ? { doctor: a.doctor?.user?.profile }
-      : { patient: a.patient?.user?.profile }),
-    date: a.time_slot?.date,
-    session: a.time_slot?.session,
-    start_time: a.time_slot?.start_time,
-    end_time: a.time_slot?.end_time,
-  }));
+    message: string,
+    appointments: Appointment[],
+    role: UserRole,
+  ) {
+    const data = appointments.map((appointment) => {
+      return {
+        appointment_id: appointment.appointment_id,
+        appointment_status: appointment.appointment_status,
+        scheduled_on: appointment.scheduled_on,
+        reason: appointment.reason,
+        notes: appointment.notes,
+        ...(role === UserRole.PATIENT
+          ? {
+              doctor: {
+                ...appointment.doctor,
+                user: {
+                  profile: appointment.doctor?.user.profile,
+                },
+              },
+            }
+          : {
+              patient: {
+                ...appointment.patient,
+                user: {
+                  profile: appointment.patient?.user.profile,
+                },
+              },
+            }),
+      };
+    });
 
-  return {
-    message,
-    total: data.length,
-    data,
+    return {
+      message,
+      total: data.length,
+      data,
     };
   }
-
 }

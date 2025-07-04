@@ -14,7 +14,13 @@ import { Session, Weekday } from '../enums/availability.enums';
 import { DoctorTimeSlot } from './doctor-time-slot.entity';
 
 @Entity('doctor_availabilities')
-@Unique(['doctor', 'date', 'session', 'start_time', 'end_time'])
+@Unique([
+  'doctor',
+  'date',
+  'session',
+  'consulting_start_time',
+  'consulting_end_time',
+])
 export class DoctorAvailability {
   @PrimaryGeneratedColumn()
   availability_id: number;
@@ -23,10 +29,10 @@ export class DoctorAvailability {
   date: Date;
 
   @Column({ type: 'time' })
-  start_time: string;
+  consulting_start_time: string;
 
   @Column({ type: 'time' })
-  end_time: string;
+  consulting_end_time: string;
 
   @Column({ type: 'enum', enum: Session })
   session: Session;

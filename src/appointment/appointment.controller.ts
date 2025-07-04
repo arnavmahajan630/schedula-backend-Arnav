@@ -37,11 +37,6 @@ export class AppointmentController {
   @Get('view')
   async viewAppointments(@Req() req: Request) {
     const user = req.user as JwtPayload;
-
-    if (![UserRole.PATIENT, UserRole.DOCTOR].includes(user.role)) {
-      throw new UnauthorizedException('Access denied: Invalid role');
-    }
-
     return this.appointmentService.viewAppointments(user.sub, user.role);
   }
 }

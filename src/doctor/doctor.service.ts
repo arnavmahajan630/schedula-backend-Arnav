@@ -121,8 +121,8 @@ export class DoctorService {
           doctor: { user_id: doctorId },
           date: dto.date,
           session: dto.session,
-          start_time: dto.start_time,
-          end_time: dto.end_time,
+          consulting_start_time: dto.consulting_start_time,
+          consulting_end_time: dto.consulting_end_time,
         },
       });
       if (existing) throw new BadRequestException('Duplicate availability');
@@ -131,8 +131,8 @@ export class DoctorService {
       await this.availabilityRepo.save(availability);
 
       const slotTimes = this.generateSlots(
-        dto.start_time,
-        dto.end_time,
+        dto.consulting_start_time,
+        dto.consulting_end_time,
         dto.slot_duration,
       );
       const slots = slotTimes.map(({ start, end }) => {
@@ -175,6 +175,13 @@ export class DoctorService {
   }
 
   async getAvailableTimeSlots(doctorId: number, page: number, limit: number) {
+    const doctor = await this.doctorRepo.findOne({
+      where: { user_id: doctorId },
+    });
+    if (!doctor) {
+      throw new BadRequestException('Invalid doctor ID');
+    }
+
     try {
       const [slots, count] = await this.timeSlotRepo.findAndCount({
         where: {
