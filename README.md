@@ -133,5 +133,5 @@ MIT License © 2025 Arnav Mahajan
 
 ## 🤝 Connect
 
-> [LinkedIn](https://linkedin.com/in/arnavmahajan630)  
+> [LinkedIn](www.linkedin.com/in/arnavmahajan630)  
 > [GitHub](https://github.com/arnavmahajan630)
