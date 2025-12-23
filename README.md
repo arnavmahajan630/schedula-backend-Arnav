@@ -105,7 +105,7 @@ Bookings are only allowed:
 ## 📤 Deployment
 
 > **URL**: https://schedula-backend-arnav.onrender.com  
-Live API hosted on **Render** with CI/CD configured.
+Live API hosted on **Render**.
 
 ---
 
